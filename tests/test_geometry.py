@@ -7,7 +7,7 @@ from brick_builder.validation import ValidationError, validate_model
 from brick_builder.geometry import profiles_from_palette, transformed_profile, validate_geometry
 
 ROOT = Path(__file__).parents[1]
-PALETTE = load_palette(ROOT / "config" / "palettes" / "classic-core-v0.json")
+PALETTE = load_palette(ROOT / "brick_builder" / "palettes" / "classic-core-v0.json")
 IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1]
 
 
@@ -41,6 +41,22 @@ class GeometryTests(unittest.TestCase):
             data = json.loads((ROOT / "examples" / "reference_models" / name).read_text())
             validate_model(data, PALETTE)
 
+    def test_geometry_analysis_result_is_shared_and_deterministic(self):
+        data = json.loads((ROOT / "examples" / "reference_models" / "rotated-one-stud.json").read_text())
+        analysis = validate_geometry(data, PALETTE)
+        self.assertEqual(analysis.overall_bounds, (-10.0, -24.0, -10.0, 30.0, 24.0, 30.0))
+        self.assertEqual(analysis.edges, (("base", "upper"),))
+        self.assertEqual(analysis.grounded_ids, ("base",))
+        self.assertEqual(analysis.root_id, "base")
+
+    def test_shifted_model_is_rejected_for_absolute_grid_misalignment(self):
+        data = json.loads((ROOT / "examples" / "reference_models/rotated-one-stud.json").read_text())
+        for placement in data["parts"]:
+            placement["translation_ldu"][0] -= 10
+        with self.assertRaises(ValidationError) as caught:
+            validate_model(data, PALETTE)
+        self.assertTrue(any(issue.code == "GRID_MISALIGNMENT" for issue in caught.exception.issues))
+
     def test_rotated_reference_has_one_expected_connection_and_no_collision(self):
         data = json.loads((ROOT / "examples" / "reference_models" / "rotated-one-stud.json").read_text())
         issues, edges = validate_geometry(data, PALETTE)
@@ -64,7 +80,7 @@ class GeometryTests(unittest.TestCase):
         self.assertTrue(any(i.code == "UNSUPPORTED_CONTACT" for i in caught.exception.issues))
 
     def test_rotation_and_tile_termination(self):
-        validate_model(model([part("a", "3004.dat"), part("b", "3004.dat", xyz=(10, -24, 10), matrix=[0, 0, 1, 0, 1, 0, -1, 0, 0])]), PALETTE)
+        validate_model(model([part("a", "3004.dat", xyz=(10, 0, 0)), part("b", "3004.dat", xyz=(20, -24, 10), matrix=[0, 0, 1, 0, 1, 0, -1, 0, 0])]), PALETTE)
         with self.assertRaises(ValidationError) as caught:
             validate_model(model([part("base", "3005.dat"), part("tile", "3070b.dat", xyz=(0, -8, 0)), part("top", "3005.dat", xyz=(0, -32, 0))]), PALETTE)
         self.assertTrue(any(i.code in {"DISCONNECTED_ASSEMBLY", "UNSUPPORTED_CONTACT"} for i in caught.exception.issues))

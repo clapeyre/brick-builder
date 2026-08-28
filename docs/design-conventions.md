@@ -70,6 +70,7 @@ LDraw establishes part geometry and transforms but does not provide a universal 
 - Validators compare intended connections with transformed port geometry and collision geometry.
 - For basic rectangular bricks and plates, ports should be generated parametrically from stud dimensions instead of hand-entered one by one.
 - Palette `studs` metadata retains LDraw part-name order `[z, x]`; geometry converts it immediately to explicit `x_studs`/`z_studs` profile fields.
+- Supported stud and underside-port world X/Z positions use Studio-compatible zero-phase 20 LDU lattice coordinates; whole-assembly normalization must preserve relative geometry while applying one common translation.
 - More complex connection families are added only with tests and physical examples.
 
 BrickLink Studio contains its own connectivity and collider data. The application may inspect or use a user's local Studio installation through an adapter when permitted, but Studio data must not be copied into the public repository without a verified redistribution licence. The portable core should rely on project-authored metadata and the appropriately attributed official LDraw library.
@@ -78,7 +79,7 @@ BrickLink Studio contains its own connectivity and collider data. The applicatio
 
 Inventory is represented by `(part, colour, quantity)` tuples. A palette says what the engine understands; an inventory says what the user can physically build.
 
-The first palette is deliberately generic. Once the LEGO Classic set numbers are known, their inventories should be imported into a user inventory and the generator should prefer or require owned part/colour combinations.
+The first palette is deliberately generic and packaged at `brick_builder/palettes/classic-core-v0.json`. Once the LEGO Classic set numbers are known, their inventories should be imported into a user inventory and the generator should prefer or require owned part/colour combinations.
 
 ## Export
 

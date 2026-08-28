@@ -68,7 +68,7 @@ This is a complementary verifier. Known geometric and catalog rules should remai
 - Create several small hand-authored reference models.
 - Verify clean import into BrickLink Studio.
 
-Initial decisions are recorded in [docs/design-conventions.md](docs/design-conventions.md). The first configurable palette proposal is [config/palettes/classic-core-v0.json](config/palettes/classic-core-v0.json). It uses LDraw identifiers, colours, units, axes, and transforms rather than introducing project-specific geometry conventions.
+Initial decisions are recorded in [docs/design-conventions.md](docs/design-conventions.md). The first configurable palette proposal is the packaged [brick_builder/palettes/classic-core-v0.json](brick_builder/palettes/classic-core-v0.json). It uses LDraw identifiers, colours, units, axes, and transforms rather than introducing project-specific geometry conventions.
 
 ### Step 2: Agentic generation and repair
 

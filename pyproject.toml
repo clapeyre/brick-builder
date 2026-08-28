@@ -9,8 +9,11 @@ description = "Deterministic, child-friendly LEGO model design tools"
 requires-python = ">=3.11"
 dependencies = ["jsonschema>=4.20,<5"]
 
+[project.scripts]
+brick-builder = "brick_builder.cli:main"
+
 [tool.setuptools.packages.find]
 include = ["brick_builder*"]
 
 [tool.setuptools.package-data]
-brick_builder = ["schema/*.json"]
+brick_builder = ["schema/*.json", "palettes/*.json"]

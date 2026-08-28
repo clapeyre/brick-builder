@@ -97,6 +97,6 @@ def validate_model(model: Any, palette: dict[str, Any], library: LDrawLibrary | 
     if issues:
         raise ValidationError(issues)
     from .geometry import validate_geometry
-    geometry_issues, _ = validate_geometry(model, palette)
-    if geometry_issues:
-        raise ValidationError(geometry_issues)
+    geometry = validate_geometry(model, palette)
+    if geometry.issues:
+        raise ValidationError(geometry.issues)

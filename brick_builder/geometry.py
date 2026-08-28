@@ -31,6 +31,23 @@ class RectProfile:
         return top, bottom
 
 
+@dataclass(frozen=True)
+class GeometryAnalysis:
+    """Deterministic geometric report shared by validation and CLI consumers."""
+    issues: tuple
+    edges: tuple
+    per_part_bounds: dict
+    overall_bounds: tuple | None
+    support_plane: float | None
+    grounded_ids: tuple
+    root_id: str | None
+
+    def __iter__(self):
+        """Compatibility with the original ``issues, edges = ...`` API."""
+        yield self.issues
+        yield set(self.edges)
+
+
 def profiles_from_palette(palette: dict[str, Any]) -> dict[str, RectProfile]:
     # Palette legacy `studs` follows LDraw name order [z, x], unlike the
     # profile's explicit x/z fields.
@@ -69,6 +86,8 @@ def validate_geometry(model: dict[str, Any], palette: dict[str, Any]):
             issues.append(ValidationIssue(f"parts[{idx}].matrix", "only rotations about the vertical Y axis are supported", "UNSUPPORTED_ORIENTATION"))
             continue
         bbox, top, bottom = transformed_profile(profile, placement)
+        if any(coordinate % PITCH for port in top + bottom for coordinate in (port[0], port[2])):
+            issues.append(ValidationIssue(f"parts[{idx}].translation_ldu", "stud and underside ports must align to the absolute 20 LDU grid", "GRID_MISALIGNMENT"))
         items.append((idx, placement, profile, bbox, top, bottom))
     edges = set()
     def overlap(a, b):
@@ -106,4 +125,10 @@ def validate_geometry(model: dict[str, Any], palette: dict[str, Any]):
     for idx, p, *_ in items:
         if p["id"] not in reachable:
             issues.append(ValidationIssue(f"parts[{idx}]", "part is floating or disconnected", "DISCONNECTED_ASSEMBLY"))
-    return tuple(issues), edges
+    ordered_edges = tuple(sorted(edges))
+    per_part_bounds = {p["id"]: b for _, p, _, b, *_ in items}
+    overall = None
+    if per_part_bounds:
+        boxes = list(per_part_bounds.values())
+        overall = (min(b[0] for b in boxes), min(b[1] for b in boxes), min(b[2] for b in boxes), max(b[3] for b in boxes), max(b[4] for b in boxes), max(b[5] for b in boxes))
+    return GeometryAnalysis(tuple(sorted(issues, key=lambda i: (i.path, i.code, i.message))), ordered_edges, per_part_bounds, overall, support_plane if items else None, tuple(sorted(grounded)), min(grounded, key=lambda ident: ids.index(ident)) if grounded else None)

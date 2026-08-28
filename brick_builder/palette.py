@@ -9,9 +9,9 @@ class PaletteError(BrickBuilderError):
     pass
 
 
-def load_palette(path: str | Path) -> dict[str, Any]:
+def load_palette(path: str | Path | Any) -> dict[str, Any]:
     """Load and lightly validate a versioned palette document."""
-    palette_path = Path(path)
+    palette_path = Path(path) if isinstance(path, (str, Path)) else path
     try:
         data = json.loads(palette_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:

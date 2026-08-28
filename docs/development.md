@@ -33,7 +33,7 @@ in one connected group with no collision. Because the connection is a single
 stud cantilever, treat stability feedback conservatively and inspect it in
 Studio before building.
 
-The default palette is `config/palettes/classic-core-v0.json`; use `--palette`
+The default palette is packaged at `brick_builder/palettes/classic-core-v0.json`; use `--palette`
 to select another versioned palette. Compilation validates the model first and
 then writes a stable single-model `.ldr` file. The compiler does not bundle
 LDraw geometry or Studio data.
@@ -52,3 +52,15 @@ The validator now performs two distinct checks: document shape (`validate_schema
 and semantic/catalog/geometry checks (`validate_model`). Rectangular bricks,
 plates, and tiles use project-authored parametric profiles. Slopes and other
 non-rectangular elements remain intentionally deferred.
+
+## Agent-facing CLI contract
+
+The installed `brick-builder` command (or `python -m brick_builder.cli`) emits
+exactly one JSON object on stdout. `catalog` returns the palette vocabulary;
+`validate` returns `valid`, model identity, part count, and structured issues;
+`analyze` adds deterministic bounds, dimensions, roots, graph edges, and basic
+collision/disconnection counts; `compile` additionally returns the output path
+and SHA-256 of the emitted LDraw file. Exit code 0 means success; code 2 means
+an input or validation error. Each issue contains `code`, `path`, `message`,
+and a deterministic `repair_hint`. The optional `--ldraw-library` argument
+selects a read-only local LDraw installation.
