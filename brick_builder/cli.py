@@ -7,27 +7,14 @@ from importlib.resources import files
 from pathlib import Path
 
 from .compiler import compile_model
+from .generation import finalize_manifest, generate
 from .geometry import profiles_from_palette, validate_geometry
 from .ldraw import discover_ldraw_library
 from .palette import load_palette
-from .validation import ValidationError, validate_model
+from .validation import ValidationError, repair_hint, validate_model
 
 
 DEFAULT_PALETTE = files("brick_builder").joinpath("palettes/classic-core-v0.json")
-
-
-def _hint(code: str) -> str:
-    hints = {
-        "SCHEMA_INVALID": "Correct the document shape or required fields.",
-        "PART_NOT_IN_PALETTE": "Choose a part listed by catalog.",
-        "COLOUR_NOT_IN_PALETTE": "Choose an allowed palette colour.",
-        "GEOMETRY_OVERLAP": "Move the part so its solid bounds do not overlap.",
-        "UNSUPPORTED_CONTACT": "Align a stud with a compatible underside port.",
-        "DISCONNECTED_ASSEMBLY": "Connect the part to the grounded assembly.",
-        "UNSUPPORTED_ORIENTATION": "Use the identity or a rotation about vertical Y.",
-        "GRID_MISALIGNMENT": "Translate the complete model so bounding edges align with 20 LDU Studio mesh lines.",
-    }
-    return hints.get(code, "Review the issue and adjust the model.")
 
 
 def _issues(exc: ValidationError) -> list[dict[str, str]]:
@@ -36,7 +23,7 @@ def _issues(exc: ValidationError) -> list[dict[str, str]]:
             "code": issue.code,
             "path": issue.path,
             "message": issue.message,
-            "repair_hint": _hint(issue.code),
+            "repair_hint": repair_hint(issue.code),
         }
         for issue in exc.issues
     ]
@@ -177,6 +164,26 @@ def _compile(args):
     }
 
 
+def generate_command(args):
+    result = generate(args.request, args.palette, args.run_dir, max_attempts=args.max_attempts)
+    return {
+        "valid": result.valid,
+        "attempts": result.attempts,
+        "run_dir": str(result.run_dir),
+        "model_id": result.model.get("model_id") if result.model else None,
+    }
+
+
+def manifest_command(args):
+    return finalize_manifest(
+        args.run_dir,
+        outcome=args.outcome,
+        attempts=args.attempts,
+        max_attempts=args.max_attempts,
+        palette_path=args.palette,
+    )
+
+
 def main(argv=None):
     if argv is None:
         import sys
@@ -184,7 +191,7 @@ def main(argv=None):
         argv = sys.argv[1:]
     if (
         len(argv) >= 2
-        and argv[0] not in {"catalog", "validate", "analyze", "compile", "-h", "--help"}
+        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "manifest", "-h", "--help"}
         and not argv[0].startswith("-")
     ):
         argv = ["compile", *argv]
@@ -209,6 +216,21 @@ def main(argv=None):
     compile_parser.add_argument("--palette", type=Path, default=DEFAULT_PALETTE)
     compile_parser.add_argument("--ldraw-library", type=Path)
     compile_parser.set_defaults(handler=_compile)
+
+    generate_parser = subparsers.add_parser("demo-generate")
+    generate_parser.add_argument("request")
+    generate_parser.add_argument("--run-dir", type=Path, default=Path("runs/hermes-generated"))
+    generate_parser.add_argument("--max-attempts", type=int, default=3)
+    generate_parser.add_argument("--palette", type=Path, default=DEFAULT_PALETTE)
+    generate_parser.set_defaults(handler=lambda args: generate_command(args))
+
+    manifest_parser = subparsers.add_parser("manifest")
+    manifest_parser.add_argument("run_dir", type=Path)
+    manifest_parser.add_argument("--outcome", required=True)
+    manifest_parser.add_argument("--attempts", type=int, required=True)
+    manifest_parser.add_argument("--max-attempts", type=int, required=True)
+    manifest_parser.add_argument("--palette", type=Path, default=DEFAULT_PALETTE)
+    manifest_parser.set_defaults(handler=manifest_command)
 
     args = parser.parse_args(argv)
     try:

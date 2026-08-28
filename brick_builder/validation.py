@@ -19,6 +19,19 @@ class ValidationError(ValueError):
         super().__init__("; ".join(f"{issue.path}: {issue.message}" for issue in self.issues))
 
 
+def repair_hint(code: str) -> str:
+    return {
+        "SCHEMA_INVALID": "Correct the document shape or required fields.",
+        "PART_NOT_IN_PALETTE": "Choose a part listed by catalog.",
+        "COLOUR_NOT_IN_PALETTE": "Choose an allowed palette colour.",
+        "GRID_MISALIGNMENT": "Translate the complete model so bounding edges align with 20 LDU Studio mesh lines.",
+        "GEOMETRY_OVERLAP": "Move the part so its solid bounds do not overlap.",
+        "UNSUPPORTED_CONTACT": "Align a stud with a compatible underside port.",
+        "DISCONNECTED_ASSEMBLY": "Connect the part to the grounded assembly.",
+        "UNSUPPORTED_ORIENTATION": "Use the identity or a rotation about vertical Y.",
+    }.get(code, "Review the issue and adjust the model.")
+
+
 def _is_int(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 

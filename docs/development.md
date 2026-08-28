@@ -64,3 +64,19 @@ and SHA-256 of the emitted LDraw file. Exit code 0 means success; code 2 means
 an input or validation error. Each issue contains `code`, `path`, `message`,
 and a deterministic `repair_hint`. The optional `--ldraw-library` argument
 selects a read-only local LDraw installation.
+
+The optional `demo-generate` command is an offline canned-fixture smoke test
+using an injectable adapter; it is not a natural-language provider and is not
+the Hermes orchestration path. Real Hermes orchestration belongs in
+`hermes/skills/brick-builder/SKILL.md`, where Hermes writes specifications,
+candidates, and command records and invokes the deterministic CLI tools for
+validation, analysis, and compilation.
+
+To install the repository skill locally, copy
+`hermes/skills/brick-builder/` to `~/.hermes/skills/brick-builder/` and run
+`/reload-skills`. A future raw GitHub install can use
+`hermes skills install <raw-GitHub-SKILL.md-URL>` once a public URL exists; no
+remote repository is assumed here. An adult smoke prompt is: “Make a tiny red
+wall using only basic rectangular bricks.” Review the generated run directory
+and import the final LDraw file into Studio before any physical build. The
+Hermes skill is repository documentation, not Python package data.

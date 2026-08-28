@@ -81,3 +81,45 @@ class CliContractTests(unittest.TestCase):
             self.assertEqual(data["sha256"], hashlib.sha256(out.read_bytes()).hexdigest())
             legacy = self.assert_json(run(model, Path(d) / "legacy.ldr"))
             self.assertTrue(legacy["valid"])
+
+    def test_demo_generate_smoke_and_analysis_artifact(self):
+        with tempfile.TemporaryDirectory() as d:
+            run_dir = Path(d) / "demo"
+            data = self.assert_json(run("demo-generate", "tiny red wall", "--run-dir", run_dir))
+            self.assertTrue(data["valid"])
+            manifest = json.loads((run_dir / "manifest.json").read_text())
+            self.assertEqual(manifest["outcome"], "success")
+            self.assertEqual(manifest["attempts"], 1)
+            self.assertRegex(manifest["palette_sha256"], r"^[0-9a-f]{64}$")
+            self.assertIn("software_version", manifest)
+            analysis = json.loads((run_dir / "analysis-1.json").read_text())
+            for field in ("edges", "bounds_ldu", "dimensions", "grounded_ids", "root_id", "collision_count", "disconnection_count"):
+                self.assertIn(field, analysis)
+            self.assertEqual(analysis["collision_count"], 0)
+
+    def test_demo_generate_rejects_invalid_attempt_limit(self):
+        with tempfile.TemporaryDirectory() as d:
+            result = run("demo-generate", "wall", "--run-dir", Path(d) / "demo", "--max-attempts", "0")
+            data = self.assert_json(result, 2)
+            self.assertFalse(data["valid"])
+            self.assertEqual(data["issues"][0]["code"], "INPUT_ERROR")
+
+    def test_manifest_command_invalid_inputs_are_structured(self):
+        with tempfile.TemporaryDirectory() as d:
+            missing = self.assert_json(run("manifest", Path(d) / "missing", "--outcome", "success", "--attempts", "1", "--max-attempts", "3"), 2)
+            self.assertEqual(missing["issues"][0]["code"], "INPUT_ERROR")
+            root = Path(d) / "run"
+            root.mkdir()
+            invalid = self.assert_json(run("manifest", root, "--outcome", "nope", "--attempts", "4", "--max-attempts", "3"), 2)
+            self.assertEqual(invalid["issues"][0]["code"], "INPUT_ERROR")
+
+    def test_manifest_command_writes_hashes(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d) / "run"
+            root.mkdir()
+            artifact = root / "command-catalog.json"
+            artifact.write_text('{"valid":true}\n')
+            self.assert_json(run("manifest", root, "--outcome", "exhausted", "--attempts", "3", "--max-attempts", "3"))
+            manifest = json.loads((root / "manifest.json").read_text())
+            self.assertEqual(manifest["outcome"], "exhausted")
+            self.assertEqual(manifest["files"][artifact.name], hashlib.sha256(artifact.read_bytes()).hexdigest())
