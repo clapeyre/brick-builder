@@ -22,6 +22,17 @@ Compile a hand-authored reference model to LDraw:
 python -m brick_builder.cli examples/reference_models/tiny-red-wall.json out/tiny-red-wall.ldr
 ```
 
+Compile the rotated one-stud Studio smoke test:
+
+```powershell
+python -m brick_builder.cli examples/reference_models/rotated-one-stud.json out/rotated-one-stud.ldr
+```
+
+Importing that file into Studio should show two perpendicular 1 x 2 bricks
+in one connected group with no collision. Because the connection is a single
+stud cantilever, treat stability feedback conservatively and inspect it in
+Studio before building.
+
 The default palette is `config/palettes/classic-core-v0.json`; use `--palette`
 to select another versioned palette. Compilation validates the model first and
 then writes a stable single-model `.ldr` file. The compiler does not bundle

@@ -29,7 +29,7 @@ class FoundationTests(unittest.TestCase):
         self.assertIn(4, {colour["ldraw_code"] for colour in self.palette["colours"]})
 
     def test_reference_models_validate(self):
-        for filename in ("tiny-red-wall.json", "tiny-blue-step.json"):
+        for filename in ("tiny-red-wall.json", "tiny-blue-step.json", "rotated-one-stud.json"):
             validate_model(reference(filename), self.palette)
 
     def test_step_reference_keeps_the_small_plate_centered_on_the_base(self):
@@ -65,6 +65,12 @@ class FoundationTests(unittest.TestCase):
             second = compile_model(model, Path(directory) / "two.ldr", self.palette).read_text()
         self.assertEqual(first, second)
         self.assertIn("1 4 0 0 0 1 0 0 0 1 0 0 0 1 3001.dat", first)
+
+    def test_compiler_emits_rotated_reference(self):
+        model = reference("rotated-one-stud.json")
+        with tempfile.TemporaryDirectory() as directory:
+            output = compile_model(model, Path(directory) / "rotated.ldr", self.palette).read_text()
+        self.assertIn("1 1 10 -24 10 0 0 1 0 1 0 -1 0 0 3004.dat", output)
 
     def test_discovery_honours_explicit_override_without_writing(self):
         with tempfile.TemporaryDirectory() as directory:

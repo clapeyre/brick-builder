@@ -4,7 +4,7 @@ from pathlib import Path
 
 from brick_builder.palette import load_palette
 from brick_builder.validation import ValidationError, validate_model
-from brick_builder.geometry import profiles_from_palette, transformed_profile
+from brick_builder.geometry import profiles_from_palette, transformed_profile, validate_geometry
 
 ROOT = Path(__file__).parents[1]
 PALETTE = load_palette(ROOT / "config" / "palettes" / "classic-core-v0.json")
@@ -40,6 +40,12 @@ class GeometryTests(unittest.TestCase):
         for name in ("tiny-red-wall.json", "tiny-blue-step.json"):
             data = json.loads((ROOT / "examples" / "reference_models" / name).read_text())
             validate_model(data, PALETTE)
+
+    def test_rotated_reference_has_one_expected_connection_and_no_collision(self):
+        data = json.loads((ROOT / "examples" / "reference_models" / "rotated-one-stud.json").read_text())
+        issues, edges = validate_geometry(data, PALETTE)
+        self.assertEqual(issues, ())
+        self.assertEqual(edges, {("base", "upper")})
 
     def test_floating_and_disconnected_parts_fail(self):
         with self.assertRaises(ValidationError) as caught:
