@@ -19,9 +19,9 @@ play, Studio GUI automation, slopes, wheels, hinges, or unrestricted catalogs.
 
 ## Prerequisites
 
-Start Hermes from the Brick Builder repository root. Ensure the `brick-builder`
-command is installed in the active environment. The adult should review the
-request and output before any physical build.
+Start Hermes from the Brick Builder repository root after creating the project
+virtual environment and installing the package into it. The adult should
+review the request and output before any physical build.
 
 ## When to Use
 
@@ -41,21 +41,23 @@ unique `runs/<run-id>/` directory. Hermes itself writes the structured spec,
 candidates, and command records; the
 deterministic CLI only validates, analyzes, and compiles them.
 
-Use exact commands:
+Use the project interpreter. On Windows, prefix each command with
+`.venv\\Scripts\\python.exe -m brick_builder.cli`; on Linux or macOS, use
+`./.venv/bin/python -m brick_builder.cli`. The Windows commands are:
 
 ```text
-terminal(command="brick-builder catalog")
-terminal(command="brick-builder validate runs/<run-id>/candidate-1.json")
-terminal(command="brick-builder analyze runs/<run-id>/candidate-1.json")
-terminal(command="brick-builder compile runs/<run-id>/candidate-1.json runs/<run-id>/final.ldr")
-terminal(command="brick-builder manifest runs/<run-id> --outcome success --attempts 1 --max-attempts 3")
-terminal(command="brick-builder manifest runs/<run-id> --outcome exhausted --attempts 3 --max-attempts 3")
+terminal(command=".venv\\Scripts\\python.exe -m brick_builder.cli catalog")
+terminal(command=".venv\\Scripts\\python.exe -m brick_builder.cli validate runs/<run-id>/candidate-1.json")
+terminal(command=".venv\\Scripts\\python.exe -m brick_builder.cli analyze runs/<run-id>/candidate-1.json")
+terminal(command=".venv\\Scripts\\python.exe -m brick_builder.cli compile runs/<run-id>/candidate-1.json runs/<run-id>/final.ldr")
+terminal(command=".venv\\Scripts\\python.exe -m brick_builder.cli manifest runs/<run-id> --outcome success --attempts 1 --max-attempts 3")
+terminal(command=".venv\\Scripts\\python.exe -m brick_builder.cli manifest runs/<run-id> --outcome exhausted --attempts 3 --max-attempts 3")
 ```
 
 The offline fixture is only a smoke test, not Hermes orchestration:
 
 ```text
-terminal(command="brick-builder demo-generate \"Make a tiny red wall\" --run-dir runs/demo")
+terminal(command=".venv\\Scripts\\python.exe -m brick_builder.cli demo-generate \"Make a tiny red wall\" --run-dir runs/demo")
 ```
 
 ## Procedure
@@ -91,6 +93,8 @@ physical stability or child safety. Never purchase, publish, or share without
 an explicit adult action.
 
 Install locally by copying `hermes/skills/brick-builder/` to
-`~/.hermes/skills/brick-builder/`, then run `/reload-skills`. A future raw
-GitHub installation may use `hermes skills install <raw-GitHub-SKILL.md-URL>`
-once a public URL exists; no remote repository URL is assumed here.
+`%LOCALAPPDATA%/hermes/skills/brick-builder/` on Windows or
+`~/.hermes/skills/brick-builder/` on Linux/macOS, then run `/reload-skills`.
+A future raw GitHub installation may use
+`hermes skills install <raw-GitHub-SKILL.md-URL>` once a public URL exists; no
+remote repository URL is assumed here.

@@ -72,9 +72,10 @@ the Hermes orchestration path. Real Hermes orchestration belongs in
 candidates, and command records and invokes the deterministic CLI tools for
 validation, analysis, and compilation.
 
-To install the repository skill locally, copy
-`hermes/skills/brick-builder/` to `~/.hermes/skills/brick-builder/` and run
-`/reload-skills`. A future raw GitHub install can use
+To install the repository skill locally, copy `hermes/skills/brick-builder/`
+to `%LOCALAPPDATA%/hermes/skills/brick-builder/` on Windows or
+`~/.hermes/skills/brick-builder/` on Linux/macOS, then run `/reload-skills`.
+A future raw GitHub install can use
 `hermes skills install <raw-GitHub-SKILL.md-URL>` once a public URL exists; no
 remote repository is assumed here. An adult smoke prompt is: “Make a tiny red
 wall using only basic rectangular bricks.” Review the generated run directory
