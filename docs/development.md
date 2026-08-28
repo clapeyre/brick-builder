@@ -1,0 +1,43 @@
+# Developer quickstart
+
+Create an isolated environment (PowerShell):
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e .
+```
+
+The deterministic slice uses Python and `unittest`; structural validation depends on the declared `jsonschema` package.
+
+Run all tests from the repository root:
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+Compile a hand-authored reference model to LDraw:
+
+```powershell
+python -m brick_builder.cli examples/reference_models/tiny-red-wall.json out/tiny-red-wall.ldr
+```
+
+The default palette is `config/palettes/classic-core-v0.json`; use `--palette`
+to select another versioned palette. Compilation validates the model first and
+then writes a stable single-model `.ldr` file. The compiler does not bundle
+LDraw geometry or Studio data.
+
+To validate against a local LDraw installation, pass a library root to
+`discover_ldraw_library(...)` or set `BRICK_BUILDER_LDRAW_LIBRARY`. A valid
+root contains `parts/` and `LDConfig.ldr`. Discovery is read-only. On Windows,
+the detector also checks the usual BrickLink Studio 2.0 `ldraw` locations.
+
+The generated files still need manual import into BrickLink Studio. That
+inspection remains the source of visual appearance, detailed collision and
+stability feedback, and build-instruction checks; the deterministic slice now
+covers conservative rectangular connectivity and basic AABB collisions.
+
+The validator now performs two distinct checks: document shape (`validate_schema`)
+and semantic/catalog/geometry checks (`validate_model`). Rectangular bricks,
+plates, and tiles use project-authored parametric profiles. Slopes and other
+non-rectangular elements remain intentionally deferred.

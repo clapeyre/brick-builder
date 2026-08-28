@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "model_id": "tiny-blue-step",
+  "name": "Tiny blue step",
+  "parts": [
+    {"id": "lower", "part": "3020.dat", "colour": 1, "translation_ldu": [0, 0, 0], "matrix": [1, 0, 0, 0, 1, 0, 0, 0, 1]},
+    {"id": "upper", "part": "3023.dat", "colour": 1, "translation_ldu": [0, -8, 10], "matrix": [1, 0, 0, 0, 1, 0, 0, 0, 1]}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "model_id": "tiny-red-wall",
+  "name": "Tiny red wall",
+  "parts": [
+    {"id": "base", "part": "3001.dat", "colour": 4, "translation_ldu": [0, 0, 0], "matrix": [1, 0, 0, 0, 1, 0, 0, 0, 1]},
+    {"id": "top", "part": "3001.dat", "colour": 4, "translation_ldu": [0, -24, 0], "matrix": [1, 0, 0, 0, 1, 0, 0, 0, 1]}
+  ]
+}

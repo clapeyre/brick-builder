@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brick-builder.example/schema/canonical-model-v1.schema.json",
+  "title": "Brick Builder canonical model document",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "model_id", "name", "parts"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "model_id": {"type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9_-]*$"},
+    "name": {"type": "string", "minLength": 1},
+    "parts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "part", "colour", "translation_ldu", "matrix"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "part": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*\\.dat$"},
+          "colour": {"type": "integer"},
+          "translation_ldu": {"type": "array", "prefixItems": [{"type": "integer"}, {"type": "integer"}, {"type": "integer"}], "items": false},
+          "matrix": {"type": "array", "minItems": 9, "maxItems": 9, "items": {"type": "integer"}}
+        }
+      }
+    }
+  }
+}
