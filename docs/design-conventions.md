@@ -70,7 +70,7 @@ LDraw establishes part geometry and transforms but does not provide a universal 
 - Validators compare intended connections with transformed port geometry and collision geometry.
 - For basic rectangular bricks and plates, ports should be generated parametrically from stud dimensions instead of hand-entered one by one.
 - Palette `studs` metadata retains LDraw part-name order `[z, x]`; geometry converts it immediately to explicit `x_studs`/`z_studs` profile fields.
-- Supported stud and underside-port world X/Z positions use Studio-compatible zero-phase 20 LDU lattice coordinates; whole-assembly normalization must preserve relative geometry while applying one common translation.
+- Supported rectangular transformed bounding edges use Studio-compatible 20 LDU cell-boundary coordinates (Studio mesh lines are cell boundaries, not stud centers); whole-assembly normalization must preserve relative geometry while applying one common translation.
 - More complex connection families are added only with tests and physical examples.
 
 BrickLink Studio contains its own connectivity and collider data. The application may inspect or use a user's local Studio installation through an adapter when permitted, but Studio data must not be copied into the public repository without a verified redistribution licence. The portable core should rely on project-authored metadata and the appropriately attributed official LDraw library.

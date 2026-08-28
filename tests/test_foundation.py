@@ -34,7 +34,7 @@ class FoundationTests(unittest.TestCase):
 
     def test_step_reference_keeps_the_small_plate_centered_on_the_base(self):
         model = reference("tiny-blue-step.json")
-        self.assertEqual(model["parts"][1]["translation_ldu"], [10, -8, 20])
+        self.assertEqual(model["parts"][1]["translation_ldu"], [0, -8, 10])
 
     def test_invalid_part_colour_translation_and_rotation_are_reported(self):
         model = reference("tiny-red-wall.json")
@@ -64,13 +64,13 @@ class FoundationTests(unittest.TestCase):
             first = compile_model(model, Path(directory) / "one.ldr", self.palette).read_text()
             second = compile_model(model, Path(directory) / "two.ldr", self.palette).read_text()
         self.assertEqual(first, second)
-        self.assertIn("1 4 10 0 10 1 0 0 0 1 0 0 0 1 3001.dat", first)
+        self.assertIn("1 4 0 0 0 1 0 0 0 1 0 0 0 1 3001.dat", first)
 
     def test_compiler_emits_rotated_reference(self):
         model = reference("rotated-one-stud.json")
         with tempfile.TemporaryDirectory() as directory:
             output = compile_model(model, Path(directory) / "rotated.ldr", self.palette).read_text()
-        self.assertIn("1 1 20 -24 10 0 0 1 0 1 0 -1 0 0 3004.dat", output)
+        self.assertIn("1 1 10 -24 20 0 0 1 0 1 0 -1 0 0 3004.dat", output)
 
     def test_discovery_honours_explicit_override_without_writing(self):
         with tempfile.TemporaryDirectory() as directory:

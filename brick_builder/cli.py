@@ -25,7 +25,7 @@ def _hint(code: str) -> str:
         "UNSUPPORTED_CONTACT": "Align a stud with a compatible underside port.",
         "DISCONNECTED_ASSEMBLY": "Connect the part to the grounded assembly.",
         "UNSUPPORTED_ORIENTATION": "Use the identity or a rotation about vertical Y.",
-        "GRID_MISALIGNMENT": "Translate the complete model so stud ports fall on 20 LDU grid coordinates.",
+        "GRID_MISALIGNMENT": "Translate the complete model so bounding edges align with 20 LDU Studio mesh lines.",
     }
     return hints.get(code, "Review the issue and adjust the model.")
 

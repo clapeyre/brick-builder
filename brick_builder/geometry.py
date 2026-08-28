@@ -86,8 +86,8 @@ def validate_geometry(model: dict[str, Any], palette: dict[str, Any]):
             issues.append(ValidationIssue(f"parts[{idx}].matrix", "only rotations about the vertical Y axis are supported", "UNSUPPORTED_ORIENTATION"))
             continue
         bbox, top, bottom = transformed_profile(profile, placement)
-        if any(coordinate % PITCH for port in top + bottom for coordinate in (port[0], port[2])):
-            issues.append(ValidationIssue(f"parts[{idx}].translation_ldu", "stud and underside ports must align to the absolute 20 LDU grid", "GRID_MISALIGNMENT"))
+        if any(coordinate % PITCH for coordinate in (bbox[0], bbox[3], bbox[2], bbox[5])):
+            issues.append(ValidationIssue(f"parts[{idx}].translation_ldu", "transformed bounding edges must align to the absolute 20 LDU mesh-cell grid", "GRID_MISALIGNMENT"))
         items.append((idx, placement, profile, bbox, top, bottom))
     edges = set()
     def overlap(a, b):
