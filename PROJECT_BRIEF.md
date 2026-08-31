@@ -72,8 +72,10 @@ Initial decisions are recorded in [docs/design-conventions.md](docs/design-conve
 
 ### Step 2: Agentic generation and repair
 
-- Create a Hermes skill around the deterministic commands.
-- Translate natural-language requests into bounded specifications.
+- Create a bounded harness adapter around the deterministic commands; retain the
+  Hermes skill as a reference while evaluating Pi as the product-facing harness.
+- Translate natural-language requests into bounded creative briefs, semantic
+  component graphs, and coarse spatial scaffolds before placing LEGO parts.
 - Generate schema-conforming candidates.
 - Feed validator failures into a bounded repair loop.
 - Preserve complete, reproducible run artifacts.
@@ -106,7 +108,12 @@ Initial decisions are recorded in [docs/design-conventions.md](docs/design-conve
 
 ## Current harness choices
 
-- Hermes Desktop/Hermes Agent is the intended runtime harness.
+- The deterministic core is harness-agnostic. Pi is the leading direction for a
+  minimal shipped agent; Hermes Desktop/Hermes Agent remains the proven reference
+  integration until a Pi vertical slice reaches parity.
 - Begin with one orchestrating agent and precise local tools. Introduce specialist agents only in response to measured failure modes.
 - Codex and the owner's personal ChatGPT subscription may be used to develop the project. Direct API-backed runtime functionality may involve separate provider configuration or billing and should not be assumed to be included automatically.
 - Keep the deterministic core harness-agnostic. Publish useful integration assets such as skills and selected portable context/configuration files, but leave provider choice and broader harness deployment to users; a comprehensive beginner deployment tutorial is not an initial goal.
+
+The detailed current sequence and task handoff are maintained in
+[docs/project-roadmap.md](docs/project-roadmap.md).

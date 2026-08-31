@@ -22,7 +22,7 @@
 - Keep the canonical design outside the BrickLink Studio GUI.
 - Use a compact, versioned, structured design representation and compile it deterministically to LDraw `.ldr` or `.mpd` files.
 - Use BrickLink Studio primarily for import, inspection, rendering, stability/collision feedback, parts information, and instructions.
-- Prefer one orchestrating Hermes agent with a small set of precise tools before introducing multiple specialist agents.
+- Prefer one narrowly bounded orchestrating agent with a small set of precise tools before introducing multiple specialist agents. Keep the deterministic core harness-agnostic; Pi is the leading product-facing harness direction, while the existing Hermes integration remains a reference until Pi reaches parity.
 - Let the model propose designs; use deterministic code to validate known constraints.
 - Add a final Studio/UI inspection layer for errors or quality problems that deterministic validators miss. GUI inspection complements rather than replaces deterministic validation.
 - Preserve reproducible trajectories: request, structured specification, generated design, validator results, repair attempts, renders, and selected output.
