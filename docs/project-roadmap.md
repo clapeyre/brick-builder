@@ -50,7 +50,10 @@ Completed capabilities include:
 - an agent-facing command-line interface with actionable diagnostics;
 - a bounded three-attempt generation and repair workflow;
 - reproducible run artifacts and hashes;
-- a portable Hermes skill and live Hermes smoke test.
+- a portable Hermes skill and live Hermes smoke test;
+- a disposable local-redesign interaction prototype using generic box
+  primitives, spatial focus and radius, hard locks, explicit spillover,
+  before/after review, retry, accept, and exact undo.
 
 The Hermes experiment proves that an agent can write a candidate, receive
 deterministic feedback, repair invalid geometry, and compile a valid result. It
@@ -135,6 +138,8 @@ most one milestone or one clearly bounded slice of a milestone.
 
 ### Milestone 3A: local-redesign interaction prototype
 
+Status: implemented and verified as a disposable probe on 2026-08-31.
+
 Build a deliberately disposable interaction prototype before defining the next
 production schema. Use a crude blocky boat so the experiment does not depend on
 predefined vehicle features such as a front grille. The prototype tests whether
@@ -172,6 +177,34 @@ Acceptance gates:
 Milestones after 3A remain provisional until the interaction prototype has been
 tried. Revise their interfaces and ordering from observed use rather than
 forcing the prototype to validate the earlier plan.
+
+Observed results:
+
+- A pure Python session state machine and a standard-library Tk interface keep
+  the probe isolated from the canonical LEGO schema, deterministic engine, and
+  Hermes adapter.
+- Stable generic-box identifiers plus a world-space focus point and radius are
+  sufficient to reproduce selection, hard locks, changed geometry, and one
+  bounded adjacent spillover change without a semantic-parts ontology.
+- The comparison needs both styling and text: the prototype uses a legend,
+  outlines, dashed spillover, block identifiers, and an explicit list of every
+  changed block. Relying on color alone was not judged sufficient.
+- Retry preserves focus and locks. Changing focus, radius, or locks starts a
+  fresh proposal sequence so retry variation cannot leak into a new edit.
+- Accept records the complete persistent concept, focus, locks, and camera;
+  undo restores those values exactly.
+- Forty-four automated tests pass. A Tk-capable desktop Python also passed an
+  automated widget-level smoke covering click focus, radius, drag rotation,
+  lock/unlock, propose, retry, accept, both comparison canvases, and exact
+  undo. The bundled Codex Python used for the isolated test environment cannot
+  initialize Tcl/Tk because it lacks `init.tcl`; this is a development-runtime
+  limitation, not evidence that every desktop Python installation can render
+  the interface.
+- The probe supports choosing simple primitives with stable identifiers as the
+  leading Milestone 3B representation. It does not yet establish the best
+  child-facing selection gesture: clicking currently snaps focus to a block
+  center, and a short supervised child trial should compare that with free
+  surface picking before the production renderer fixes the interaction.
 
 ### Milestone 3B: production spatial representation and renderer
 
@@ -306,23 +339,15 @@ substantial exploratory history unrelated to the next implementation slice.
 
 ## Next recommended task
 
-Implement only Milestone 3A: the disposable local-redesign interaction
-prototype described above and in `docs/local-edit-vertical-slice.md`.
+Run one short, adult-supervised manual interaction trial of the disposable 3A
+prototype before implementing Milestone 3B. Check whether the child can rotate
+the boat, understand the focus circle and radius, distinguish locks from
+ordinary selection, notice disclosed spillover, and predict accept versus
+undo. Record whether block-center snapping is understandable or whether free
+surface picking is needed.
 
-Use a crude blocky boat, spatial focus point and radius, hard block locks, a
-canned redesign proposal, visible spillover, before/after comparison, retry,
-accept, and exact undo. Do not add a live LLM call, production schema,
-LEGOization, Pi, Studio automation, or a universal parts ontology. The purpose
-is to learn from the interaction, not to choose the final architecture.
-
-Suggested opening prompt for the fresh task:
-
-> Read `AGENTS.md`, `PROJECT_BRIEF.md`, `docs/project-roadmap.md`,
-> `docs/local-edit-vertical-slice.md`, and `docs/design-conventions.md`
-> completely. Implement only Milestone 3A from the roadmap as a disposable
-> local interaction prototype. First delegate a bounded implementation attempt
-> to a `gpt-5.6-luna` subagent, then inspect, integrate, correct, and verify the
-> result as the root agent. Preserve the deterministic Python core and Hermes
-> integration. Run relevant checks, update the roadmap with observed results,
-> create a coherent commit, and push the verified commit to the configured
-> `origin`.
+If that trial does not reveal a blocking interaction problem, begin only
+Milestone 3B. Use generic simple primitives with stable identifiers as the
+leading representation, but keep the exact selection gesture revisable. Do not
+promote the disposable 3A contract directly into a production schema or begin
+LEGOization, Pi integration, or Studio automation in the same task.
