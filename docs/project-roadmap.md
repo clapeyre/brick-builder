@@ -66,18 +66,33 @@ The intended design pipeline is:
 
 ```text
 child's request
-    -> bounded creative brief
-    -> semantic component graph
-    -> coarse stud-grid spatial scaffold
-    -> LEGO part assembly
-    -> deterministic validation and repair
-    -> fixed-view renders and visual critique
-    -> child selection and revision
+    -> several inexpensive whole-model blockouts
+    -> child selects a persistent starting concept
+    -> child focuses a point, region, or provisional agent-suggested group
+    -> agent proposes a local redesign with visible spillover
+    -> child accepts, retries, adjusts focus, locks geometry, or undoes
+    -> repeated refinement of the spatial concept
+    -> LEGOization and deterministic validation
     -> final Studio inspection and adult-controlled export
 ```
 
-The semantic and spatial layers are missing today. They are the next product
-risk to address.
+The missing product capability is not a universal ontology of creature,
+vehicle, or building parts. Region names such as `head`, `bow`, `grille`, or
+`tower` may be generated for one design as convenient labels, but the core
+editing protocol must remain spatial and model-specific.
+
+A selection expresses the user's focus, not necessarily an inviolable cutting
+plane. The agent may discover that a good local redesign requires adjacent
+changes. Such spillover must be bounded, shown explicitly in a before/after
+preview, and reversible. Explicit locks and recorded invariants are hard
+constraints; ordinary focus is guidance. When a concept becomes a LEGO
+assembly, selection may combine spatial distance with connection and
+subassembly relationships.
+
+The first interaction proposal and edit-contract draft are recorded in
+[`docs/local-edit-vertical-slice.md`](local-edit-vertical-slice.md). Its example
+JSON is exploratory and must not be promoted directly into a production schema
+without prototype evidence.
 
 The system must distinguish two kinds of feedback:
 
@@ -118,45 +133,59 @@ general agent harness is out of scope.
 These are ordered steps, not calendar commitments. One Codex task should own at
 most one milestone or one clearly bounded slice of a milestone.
 
-### Milestone 3A: design-intent representation
+### Milestone 3A: local-redesign interaction prototype
 
-Define a versioned representation between natural language and individual LEGO
-parts. Begin with one family, preferably a simple creature, rather than trying
-to cover creatures, vehicles, and buildings simultaneously.
+Build a deliberately disposable interaction prototype before defining the next
+production schema. Use a crude blocky boat so the experiment does not depend on
+predefined vehicle features such as a front grille. The prototype tests whether
+a user can refine one area without triggering an opaque whole-model rewrite.
 
-The representation should include:
+The prototype should provide:
 
-- semantic components such as body, head, tail, legs, wings, and eyes;
-- parent/attachment, symmetry, ordering, and grounding relationships;
-- component importance and recognizability priorities;
-- coarse dimensions and positions measured in studs and plates;
-- landmarks such as eye positions, tail tip, feet, and wing tips;
-- target front, side, top, and three-quarter silhouettes where useful;
-- global part-count, size, palette, colour, and style constraints.
+- a rotatable blockout assembled from simple boxes;
+- a click-selected focus point and adjustable radius;
+- an ordinary-language local redesign request;
+- a canned or simulated proposal rather than a live model integration;
+- a before/after comparison that marks all changed geometry;
+- explicit indication of changes outside the focus radius;
+- the ability to accept, retry, undo, and lock selected blocks.
 
-Deliver hand-authored examples before asking a model to create these documents.
+The focus radius is guidance. A proposal may affect adjacent geometry when
+needed, but must disclose the spillover. Locked blocks are hard constraints.
+Agent-suggested semantic groups may be explored later as a convenience, not as
+the canonical representation.
 
 Acceptance gates:
 
-- the schema can express at least three visibly different small creature plans;
-- invalid component relationships produce actionable diagnostics;
-- a human can inspect the document and understand the intended 3D composition;
-- tests cover versioning, bounds, symmetry, attachment references, and required
-  landmarks;
-- no LEGO part placement is required to judge whether the plan resembles its
-  brief.
+- the user can rotate the blockout and place or adjust a spatial focus;
+- the selected focus and any hard-locked geometry are visually unambiguous;
+- the proposal identifies every changed block, including spillover;
+- retry preserves the focus and locks unless the user changes them;
+- undo restores the exact previous state;
+- no animal, vehicle, or building part ontology is required;
+- the prototype contains no live LLM call, LEGOization, Pi integration, Studio
+  automation, purchasing, publishing, or claims of physical buildability;
+- the interaction produces enough evidence to choose the next spatial
+  representation rather than treating the prototype's data structures as the
+  production design.
 
-### Milestone 3B: spatial scaffold renderer
+Milestones after 3A remain provisional until the interaction prototype has been
+tried. Revise their interfaces and ordering from observed use rather than
+forcing the prototype to validate the earlier plan.
 
-Turn a design-intent document into a simple, deterministic 3D proxy composed of
-boxes, wedges, spines, or occupied stud-grid cells. Produce fixed-camera renders
-or another readily inspectable representation.
+### Milestone 3B: production spatial representation and renderer
+
+Choose the smallest production representation justified by the prototype. It
+may use boxes, other simple primitives, occupied cells, or another inspectable
+spatial form. It must support stable geometry references, reproducible renders,
+focus selection, hard locks, and before/after differences without requiring a
+universal semantic-parts ontology.
 
 Acceptance gates:
 
 - front, side, top, and three-quarter views are reproducible;
-- component colours or labels make the semantic decomposition obvious;
-- dimensions and landmarks agree with the structured document;
+- selected, changed, spilled-over, and locked geometry are distinguishable;
+- saved focus and edit references resolve to the same geometry on replay;
 - the home beta tester can distinguish intentionally different concepts before
   any LEGO filling occurs.
 
@@ -189,9 +218,9 @@ Reproduce the bounded Hermes workflow in Pi without changing the Python core.
 The initial tool surface should be domain-specific, approximately:
 
 - inspect the supported palette;
-- submit or revise a bounded creative brief;
-- submit or revise a design-intent document;
-- generate or inspect a spatial scaffold;
+- submit or revise a bounded creative request;
+- generate or inspect the chosen spatial concept representation;
+- submit a focused redesign request with locks and invariants;
 - request LEGOization;
 - validate and analyze an assembly;
 - compile and finalize a successful run.
@@ -259,12 +288,14 @@ work. Use the following working method:
 2. Point it to `AGENTS.md`, `PROJECT_BRIEF.md`, and this roadmap.
 3. Ask the root agent to inspect the current worktree and recent commits before
    proposing edits.
-4. Give each subagent one independent deliverable: implementation, tests,
-   reference examples, or review. Avoid an indefinitely running subagent that
-   accumulates the whole project history.
+4. For every implementation slice, give at least one `gpt-5.6-luna` subagent
+   the first bounded implementation attempt. Give each subagent one independent
+   deliverable and avoid an indefinitely running subagent that accumulates the
+   whole project history.
 5. Keep one root agent responsible for integration, verification, and the final
    commit for that slice.
-6. Commit coherent increments as they pass their acceptance gates.
+6. Commit coherent increments as they pass their acceptance gates and push the
+   verified commits regularly to the configured `origin`.
 7. At the end of the task, update `Current verified state`, the applicable
    milestone, and `Next recommended task` below.
 
@@ -275,20 +306,23 @@ substantial exploratory history unrelated to the next implementation slice.
 
 ## Next recommended task
 
-Implement only Milestone 3A: the design-intent representation for one constrained
-creature family.
+Implement only Milestone 3A: the disposable local-redesign interaction
+prototype described above and in `docs/local-edit-vertical-slice.md`.
 
-Before implementation, decide the smallest useful creature vocabulary and write
-three hand-authored concepts, including a simple dragon-like example. Do not add
-Pi, visual-model calls, general text-to-3D generation, or LEGOization in that
-task. The output should be a reviewable semantic/spatial plan, its schema,
-validation, examples, and tests.
+Use a crude blocky boat, spatial focus point and radius, hard block locks, a
+canned redesign proposal, visible spillover, before/after comparison, retry,
+accept, and exact undo. Do not add a live LLM call, production schema,
+LEGOization, Pi, Studio automation, or a universal parts ontology. The purpose
+is to learn from the interaction, not to choose the final architecture.
 
 Suggested opening prompt for the fresh task:
 
 > Read `AGENTS.md`, `PROJECT_BRIEF.md`, `docs/project-roadmap.md`,
-> `docs/design-conventions.md`, and the active palette completely. Implement
-> only Milestone 3A from the roadmap, including its hand-authored examples,
-> validators, tests, documentation update, and a coherent git commit. Preserve
-> the existing deterministic model and Hermes integration. Use subagents only
-> for bounded independent implementation, test, or review work.
+> `docs/local-edit-vertical-slice.md`, and `docs/design-conventions.md`
+> completely. Implement only Milestone 3A from the roadmap as a disposable
+> local interaction prototype. First delegate a bounded implementation attempt
+> to a `gpt-5.6-luna` subagent, then inspect, integrate, correct, and verify the
+> result as the root agent. Preserve the deterministic Python core and Hermes
+> integration. Run relevant checks, update the roadmap with observed results,
+> create a coherent commit, and push the verified commit to the configured
+> `origin`.

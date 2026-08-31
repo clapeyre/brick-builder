@@ -34,3 +34,24 @@
 - Maintain hand-authored reference models and representative prompt-based evaluations.
 - Test actual physical builds when practical; digital validity is not sufficient evidence of buildability or fun.
 - Keep all external writes, purchasing, publishing, and account actions behind explicit adult approval.
+
+## Development workflow
+
+- Before implementation begins, record the bounded slice, acceptance gates, and
+  explicit non-goals in `docs/project-roadmap.md` or a document linked from it.
+- For every implementation slice, the root agent must first delegate an
+  implementation attempt to at least one `gpt-5.6-luna` subagent. Documentation-
+  only planning changes do not require this step. If Luna subagents are
+  unavailable, report that constraint instead of silently bypassing the trial.
+- Treat the Luna result as an implementation attempt, not as accepted output.
+  The root agent remains responsible for inspecting the repository, resolving
+  conflicts, integrating or rewriting the work, running verification, and
+  deciding whether the acceptance gates are satisfied.
+- Give each subagent a bounded deliverable and avoid concurrent edits to the same
+  files. Prefer one implementation task with a root integrator over several
+  user-visible tasks writing to the repository independently.
+- Commit coherent increments after their relevant checks pass. Push verified
+  commits regularly to the already configured `origin` so progress is backed up
+  and reviewable. Do not change the remote or repository visibility, push
+  secrets or generated run artifacts, or push a knowingly failing increment
+  unless the owner explicitly requests it.
