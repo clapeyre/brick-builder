@@ -37,6 +37,11 @@
 
 ## Development workflow
 
+- Default to `gpt-5.6-terra` at medium reasoning for the root integrator and
+  `gpt-5.6-luna` at medium reasoning for the required first implementation
+  attempt. Explicit user or task-specific model and reasoning choices take
+  precedence. If either default is unavailable, report the constraint rather
+  than silently substituting another model or reasoning level.
 - Before implementation begins, record the bounded slice, acceptance gates, and
   explicit non-goals in `docs/project-roadmap.md` or a document linked from it.
 - For every implementation slice, the root agent must first delegate an
