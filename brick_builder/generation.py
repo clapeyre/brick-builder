@@ -90,8 +90,8 @@ def finalize_manifest(
     root = Path(run_dir)
     if not root.is_dir():
         raise ValueError(f"run directory does not exist: {root}")
-    if outcome not in {"success", "exhausted"}:
-        raise ValueError("outcome must be 'success' or 'exhausted'")
+    if outcome not in {"success", "exhausted", "failed"}:
+        raise ValueError("outcome must be 'success', 'exhausted', or 'failed'")
     if not isinstance(attempts, int) or isinstance(attempts, bool) or attempts < 0:
         raise ValueError("attempts must be a non-negative integer")
     if not isinstance(max_attempts, int) or isinstance(max_attempts, bool) or max_attempts <= 0:

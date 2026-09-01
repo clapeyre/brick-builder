@@ -1,0 +1,6 @@
+{
+  "format": "brick-builder.demo-brief/v1",
+  "request": "Make a tiny red two-stud-deep box.",
+  "intent": "small solid red box",
+  "constraints": {"orthogonal": true, "depth_studs": 2, "adult_supervised": true}
+}

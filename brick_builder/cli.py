@@ -7,6 +7,7 @@ from importlib.resources import files
 from pathlib import Path
 
 from .compiler import compile_model
+from .demo_replay import replay_demo
 from .generation import finalize_manifest, generate
 from .geometry import profiles_from_palette, validate_geometry
 from .ldraw import discover_ldraw_library
@@ -184,6 +185,10 @@ def manifest_command(args):
     )
 
 
+def demo_replay_command(args):
+    return replay_demo(args.request_file, args.brief, args.scaffold, args.run_dir, args.palette)
+
+
 def main(argv=None):
     if argv is None:
         import sys
@@ -191,7 +196,7 @@ def main(argv=None):
         argv = sys.argv[1:]
     if (
         len(argv) >= 2
-        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "manifest", "-h", "--help"}
+        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "demo-replay", "manifest", "-h", "--help"}
         and not argv[0].startswith("-")
     ):
         argv = ["compile", *argv]
@@ -231,6 +236,14 @@ def main(argv=None):
     manifest_parser.add_argument("--max-attempts", type=int, required=True)
     manifest_parser.add_argument("--palette", type=Path, default=DEFAULT_PALETTE)
     manifest_parser.set_defaults(handler=manifest_command)
+
+    replay_parser = subparsers.add_parser("demo-replay")
+    replay_parser.add_argument("--request-file", type=Path, required=True)
+    replay_parser.add_argument("--brief", type=Path, required=True)
+    replay_parser.add_argument("--scaffold", type=Path, required=True)
+    replay_parser.add_argument("--run-dir", type=Path, required=True)
+    replay_parser.add_argument("--palette", type=Path, default=DEFAULT_PALETTE)
+    replay_parser.set_defaults(handler=demo_replay_command)
 
     args = parser.parse_args(argv)
     try:

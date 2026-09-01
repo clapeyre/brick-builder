@@ -576,6 +576,51 @@ substantial exploratory history unrelated to the next implementation slice.
 
 ## Next recommended task
 
+### 3D third bounded slice: offline end-to-end demo replay
+
+Status: verified (2026-09-01).
+
+Build one replayable, no-credential demonstration that connects the already
+implemented layers: a checked-in creative request and brief, an inspectable
+axis-aligned spatial scaffold, deterministic LEGOization, canonical validation
+and analysis, deterministic LDraw compilation, fixed-view render output, and a
+complete per-run manifest. The request-to-brief and brief-to-scaffold inputs
+may be scripted fixtures for this first demonstration; this slice proves the
+artifact chain and its boundaries, not live model quality.
+
+Acceptance gates:
+
+- one checked-in demo request produces a contained run directory with every
+  named stage artifact and stable hashes for deterministic outputs;
+- the recorded scaffold is passed to the existing LEGOization path, and the
+  accepted assembly is independently validated, analyzed, compiled, and
+  rendered from fixed views;
+- a deterministic failed or unsupported scaffold stops before final LDraw
+  output with actionable evidence, rather than producing a claimed successful
+  demo;
+- the Pi adapter can expose the demo only through its existing restricted
+  domain surface or a narrowly documented domain operation; it gains no shell
+  or arbitrary filesystem capability;
+- existing Python, Pi adapter, Hermes, renderer, and two-depth scaffold
+  behavior remain passing and unchanged outside this composed path.
+
+Explicit non-goals: a live provider or credentials, freeform generation,
+production brief/scaffold schemas, UI refinement, Studio automation, broad
+new LEGOization shapes, visual critique, and child testing.
+
+Observed results (2026-09-01):
+
+- `demo-replay` composes checked-in request and brief fixtures, the existing
+  two-stud scaffold tiler, canonical validation and analysis, deterministic
+  LDraw compilation, two fixed-view SVG renders, and a hashed manifest under
+  one fresh run directory;
+- the depth-three fixture records coverage and `failure.json`, then stops
+  before creating `final.ldr`; it does not present a partial assembly as a
+  successful demo;
+- the existing five-tool Pi adapter, Hermes files, renderer behavior, and
+  deterministic tilers were left unchanged; 60 Python tests, compilation, and
+  diff checks pass.
+
 Build a single bounded end-to-end demo path before further UI refinement. It
 should take one deliberately narrow creative request through a recorded brief,
 an inspectable spatial scaffold, deterministic LEGOization, validation,
