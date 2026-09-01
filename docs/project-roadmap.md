@@ -218,9 +218,10 @@ Observed results:
 
 ### Milestone 3B: production spatial representation and renderer
 
-Home beta-tester gate: **pending**. The child tester is unavailable during
-school; no child-facing rendering or concept-distinction claim has been made
-for this increment.
+Adult usability threshold: **met** on 2026-09-01. The supervising user finds
+the prototype sufficiently clear to continue engineering toward an end-to-end
+demo. The home beta-tester comprehension trial is deferred to Milestone 4; no
+child-facing rendering or concept-distinction claim has been made yet.
 
 Choose the smallest production representation justified by the prototype. It
 may use boxes, other simple primitives, occupied cells, or another inspectable
@@ -233,8 +234,8 @@ Acceptance gates:
 - front, side, top, and three-quarter views are reproducible;
 - selected, changed, spilled-over, and locked geometry are distinguishable;
 - saved focus and edit references resolve to the same geometry on replay;
-- the home beta tester can distinguish intentionally different concepts before
-  any LEGO filling occurs.
+- an adult can inspect intentionally different concepts and the edit state
+  before any LEGO filling occurs.
 
 Bounded first implementation slice, recorded 2026-09-01:
 
@@ -263,8 +264,9 @@ Slice acceptance gates:
 
 Explicit non-goals for this slice are freeform mesh editing, Studio automation,
 LEGOization, connectivity, collision or stability feedback, instructions,
-live model calls, Pi integration, and a universal semantic-parts ontology. The
-home beta tester gate remains pending a supervised trial of the solid renderer.
+live model calls, Pi integration, and a universal semantic-parts ontology.
+Child-comprehension evidence is deferred to Milestone 4 and is not an
+engineering gate for the end-to-end demo path.
 
 Slice implementation result, 2026-09-01:
 
@@ -283,9 +285,9 @@ Slice implementation result, 2026-09-01:
   Tk widget/canvas smoke rendered 24 visible faces in the three-quarter view
   and eight correctly oriented front faces for the eight-block boat;
 - Windows screen capture timed out at the Computer Use approval boundary, so
-  no screenshot-based visual judgment is claimed. The supervising user should
-  reopen the UI and confirm that the solid boat fixes the reported flat-plane
-  appearance; the home beta tester comprehension gate remains pending.
+  no screenshot-based visual judgment is claimed. The supervising user has
+  since judged the prototype good enough to proceed; child-comprehension
+  evaluation is intentionally deferred to Milestone 4.
 
 ### Milestone 3C: initial LEGOization
 
@@ -398,8 +400,8 @@ Observed results (2026-09-01):
 
 Status: verified first slice (2026-09-01). The supervising user has
 confirmed that the current local interface is clear enough for adult-guided
-use. The home beta-tester comprehension gate remains pending, but does not
-block this non-UI engineering slice.
+use. Child-comprehension evaluation is deferred to Milestone 4 and does not
+block the end-to-end demo path.
 
 Add a small pinned TypeScript Pi adapter that exposes only offline,
 domain-specific wrappers over the existing Python JSON CLI. The first slice
@@ -574,18 +576,19 @@ substantial exploratory history unrelated to the next implementation slice.
 
 ## Next recommended task
 
-Close and reopen the local-redesign UI, then run one short adult-supervised
-trial of the solid-box renderer. First confirm that the supervising user now
-reads the boat as solid volumes in the three-quarter view. Then check whether
-the home beta tester can distinguish two intentionally different concepts,
-rotate the boat, understand the focus circle and radius, distinguish locks from
-ordinary selection, notice disclosed spillover, and predict accept versus
-undo. Record whether block-center snapping is understandable or whether free
-surface picking is needed.
+Build a single bounded end-to-end demo path before further UI refinement. It
+should take one deliberately narrow creative request through a recorded brief,
+an inspectable spatial scaffold, deterministic LEGOization, validation,
+compilation, fixed-view output, and an auditable run manifest. Use scripted or
+checked-in inputs first; a live provider, credentials, and public sharing still
+require explicit adult approval.
 
-If the solid rendering and child-comprehension gates pass, close Milestone 3B
-and, only in a fresh bounded task, extend Milestone 3C with another scaffold
-shape or explicit deterministic tiling failure mode. Keep the 3B home
-beta-tester gate pending until the child tester is available. Do not combine
-that work with Pi integration, Studio automation, a live model loop, UI
-expansion, or a broader parts ontology.
+The demo must retain the current hard constraints: no generic shell or
+filesystem access for Pi, no silent whole-model rewrite after a concept is
+selected, deterministic engineering validation separated from resemblance,
+and all artifacts contained in a per-run directory. Improve the child-facing
+UI only after this vertical path produces a result worth testing with a child.
+
+The deferred Milestone 4 trial should then evaluate child comprehension of
+candidate choice, focus, locks, spillover, accept, and undo using the
+end-to-end demo rather than the early renderer prototype in isolation.
