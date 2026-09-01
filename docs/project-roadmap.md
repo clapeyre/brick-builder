@@ -439,6 +439,49 @@ Observed results (2026-09-01):
   used;
 - the existing 55 Python tests continue to pass and Hermes remains untouched.
 
+#### 3D second bounded slice: scripted Pi-session contract
+
+Status: verified (2026-09-01).
+
+Exercise the existing offline domain-tool adapter through Pi agent sessions
+backed by scripted, in-memory model responses. This slice must prove that the
+Pi runtime receives the narrow Brick Builder tool set—not a generic shell or
+filesystem—and that tool calls, malformed calls, bounded repair, exhaustion,
+cancellation, and provider failure have auditable session outcomes. No live
+provider, credential, or user-facing Pi UI is permitted.
+
+Acceptance gates:
+
+- a scripted successful session uses the domain tools to validate and compile a
+  known canonical model into its run root;
+- scripted malformed call, bounded repair/exhaustion, cancellation, and
+  provider failure cases each produce deterministic, asserted outcomes;
+- all generated artifacts remain inside the declared run root and the session
+  configuration exposes no Pi built-in tool;
+- the existing adapter wrapper tests, Python CLI tests, and Hermes smoke
+  contract retain their behavior.
+
+Explicit non-goals: live provider calls or credentials, a model-selection UI,
+new domain operations, Pi-driven editing, arbitrary filesystem or shell tools,
+Studio automation, and changes to the deterministic Python core.
+
+Observed results (2026-09-01):
+
+- the adapter now runs a real in-memory Pi `AgentSession` using Pi's pinned
+  faux provider; it retains `noTools: "builtin"` and supplies only the five
+  existing Brick Builder domain tools;
+- scripted session tests assert validate-and-compile success, malformed model
+  arguments followed by repair, bounded exhaustion, cancellation, and a
+  provider failure; every session writes an auditable `session-outcome.json`
+  alongside the already confined run artifacts;
+- the adapter's direct Pi AI dependency is exact-pinned at `0.84.4`, matching
+  the pinned coding-agent release; no provider credential or network is used;
+- seven compiled TypeScript tests, all 58 Python tests, TypeScript type-check,
+  and diff checks pass. The original `tsx` runner cannot start in this Codex
+  Windows runtime because `uv_os_get_passwd` returns `ENOMEM`; compiling first
+  and using Node's native test runner verifies the same test module instead.
+  Hermes files and the deterministic Python core remain unchanged.
+
 Reproduce the bounded Hermes workflow in Pi without changing the Python core.
 The initial tool surface should be domain-specific, approximately:
 

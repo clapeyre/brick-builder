@@ -3,7 +3,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Type } from "@sinclair/typebox";
-import { defineTool, type ToolDefinition, type CreateAgentSessionOptions } from "@earendil-works/pi-coding-agent";
+import { createAgentSession, defineTool, ModelRuntime, SessionManager, SettingsManager, type ToolDefinition, type CreateAgentSessionOptions } from "@earendil-works/pi-coding-agent";
+import { fauxAssistantMessage, fauxProvider, fauxToolCall, type FauxResponseStep } from "@earendil-works/pi-ai";
 
 export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate";
 export type RunnerOptions = { runRoot: string; python?: string; repositoryRoot?: string; signal?: AbortSignal };
@@ -95,6 +96,81 @@ export function createPiSessionOptions(adapter: BrickBuilderAdapter): CreateAgen
   // Pi's documented noTools mode suppresses its built-in filesystem and shell
   // tools while retaining the explicitly supplied custom domain tools.
   return { customTools: createBrickBuilderTools(adapter), noTools: "builtin" } as CreateAgentSessionOptions;
+}
+
+export type ScriptedPiResponse =
+  | { kind: "text"; text: string }
+  | { kind: "tool"; name: string; arguments: Record<string, unknown>; id?: string }
+  | { kind: "provider-error"; message: string }
+  | { kind: "delay"; ms: number; response: Exclude<ScriptedPiResponse, { kind: "delay" }> };
+
+export type PiSessionOutcome = {
+  status: "completed" | "cancelled" | "provider-error" | "session-error";
+  assistantText: string;
+  toolCalls: string[];
+  events: string[];
+  artifactPath: string;
+};
+
+function scriptedStep(response: ScriptedPiResponse): FauxResponseStep {
+  if (response.kind === "text") return fauxAssistantMessage(response.text);
+  if (response.kind === "tool") return fauxAssistantMessage(fauxToolCall(response.name, response.arguments, { id: response.id }));
+  if (response.kind === "provider-error") return async () => { throw new Error(response.message); };
+  return async (_context, options, _state, _model) => {
+    await new Promise<void>((resolvePromise, reject) => {
+      const timer = setTimeout(resolvePromise, response.ms);
+      options?.signal?.addEventListener("abort", () => { clearTimeout(timer); reject(new Error("operation cancelled")); }, { once: true });
+    });
+    return scriptedStep(response.response) instanceof Function
+      ? (scriptedStep(response.response) as any)(_context, options, _state, _model)
+      : scriptedStep(response.response);
+  };
+}
+
+/** Run one real Pi AgentSession against deterministic in-memory model responses. */
+export async function runScriptedPiSession(
+  adapter: BrickBuilderAdapter,
+  prompt: string,
+  responses: ScriptedPiResponse[],
+  options: { signal?: AbortSignal } = {},
+): Promise<PiSessionOutcome> {
+  const faux = fauxProvider({ provider: "brick-builder-scripted", models: [{ id: "offline-script", name: "Offline scripted model" }] });
+  faux.setResponses(responses.map(scriptedStep));
+  const runtime = await ModelRuntime.create({ allowModelNetwork: false, refreshOnCreate: false });
+  runtime.registerNativeProvider(faux.provider);
+  const sessionResult = await createAgentSession({
+    ...createPiSessionOptions(adapter),
+    cwd: adapter.runRoot,
+    model: faux.getModel(),
+    modelRuntime: runtime,
+    sessionManager: SessionManager.inMemory(adapter.runRoot),
+    settingsManager: SettingsManager.create(adapter.runRoot, adapter.runRoot),
+  });
+  const events: string[] = [], toolCalls: string[] = [], assistant: string[] = [];
+  const unsubscribe = sessionResult.session.subscribe((event: any) => {
+    if (event.type === "tool_execution_start") { toolCalls.push(event.toolName); events.push(`tool:start:${event.toolName}`); }
+    else if (event.type === "tool_execution_end") events.push(`tool:end:${event.toolName}`);
+    else if (event.type === "message_end" && event.message?.role === "assistant") {
+      const text = event.message.content?.filter((part: any) => part.type === "text").map((part: any) => part.text).join("") ?? "";
+      if (text) assistant.push(text);
+    } else events.push(event.type);
+  });
+  const abortSession = () => { void sessionResult.session.abort(); };
+  options.signal?.addEventListener("abort", abortSession, { once: true });
+  let status: PiSessionOutcome["status"] = "completed";
+  try {
+    if (options.signal?.aborted) throw new Error("operation cancelled");
+    await sessionResult.session.prompt(prompt);
+    await sessionResult.session.waitForIdle();
+    if (options.signal?.aborted) status = "cancelled";
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    status = /cancel/i.test(message) ? "cancelled" : /provider|unavailable/i.test(message) ? "provider-error" : "session-error";
+  } finally { options.signal?.removeEventListener("abort", abortSession); unsubscribe(); await sessionResult.session.abort(); }
+  const artifactPath = contained(adapter.runRoot, resolve(adapter.runRoot, "session-outcome.json"));
+  const outcome: PiSessionOutcome = { status, assistantText: assistant.join("\n"), toolCalls, events, artifactPath };
+  await writeFile(artifactPath, JSON.stringify(outcome, null, 2) + "\n", "utf8");
+  return outcome;
 }
 
 export async function readRunArtifact(runRoot: string, name: string): Promise<string> {

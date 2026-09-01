@@ -3,7 +3,7 @@ import { mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
-import { BrickBuilderAdapter, createBrickBuilderTools, createPiSessionOptions, readRunArtifact, runBounded } from "../src/index.js";
+import { BrickBuilderAdapter, createBrickBuilderTools, createPiSessionOptions, readRunArtifact, runBounded, runScriptedPiSession } from "../src/index.js";
 
 const repo = resolve(import.meta.dirname, "../../..");
 const python = join(repo, ".venv", "Scripts", "python.exe");
@@ -46,4 +46,50 @@ test("bounded attempts, cancellation, and provider failure have explicit semanti
   await assert.rejects(() => runBounded(1, async () => { throw new Error("provider unavailable"); }), /provider unavailable/);
   const result = await runBounded(3, async (attempt, feedback) => attempt === 2 ? { value: "accepted" } : { feedback: [{ attempt, feedback }] });
   assert.deepEqual(result, { value: "accepted", attempts: 2 });
+});
+
+test("a scripted Pi session validates and compiles through only domain tools", async () => {
+  const { root, api } = await adapter();
+  const outcome = await runScriptedPiSession(api, "validate then compile this model", [
+    { kind: "tool", name: "brick_validate", arguments: { model } },
+    { kind: "tool", name: "brick_compile", arguments: { model } },
+    { kind: "text", text: "Accepted." },
+  ]);
+  assert.equal(outcome.status, "completed");
+  assert.deepEqual(outcome.toolCalls, ["brick_validate", "brick_compile"]);
+  assert.equal(outcome.assistantText, "Accepted.");
+  assert.equal(await readRunArtifact(root, "session-outcome.json"), JSON.stringify(outcome, null, 2) + "\n");
+  await stat(join(root, "final.ldr"));
+  assert.ok(outcome.artifactPath.startsWith(root));
+});
+
+test("scripted malformed calls and bounded repair/exhaustion are auditable", async () => {
+  const malformed = await adapter();
+  const malformedOutcome = await runScriptedPiSession(malformed.api, "validate", [
+    { kind: "tool", name: "brick_validate", arguments: {} },
+    { kind: "text", text: "Repair required." },
+  ]);
+  assert.equal(malformedOutcome.status, "completed");
+  assert.deepEqual(malformedOutcome.toolCalls, ["brick_validate"]);
+  const repaired = await adapter();
+  const repairedOutcome = await runScriptedPiSession(repaired.api, "repair then compile", [
+    { kind: "tool", name: "brick_validate", arguments: { model: {} } },
+    { kind: "tool", name: "brick_validate", arguments: { model } },
+    { kind: "text", text: "Repaired." },
+  ]);
+  assert.deepEqual(repairedOutcome.toolCalls, ["brick_validate", "brick_validate"]);
+  await assert.rejects(() => runBounded(2, async () => ({ feedback: [{ code: "invalid" }] })), /exhausted after 2/);
+});
+
+test("scripted cancellation and provider failure have deterministic outcomes", async () => {
+  const cancelled = await adapter();
+  const controller = new AbortController();
+  const pending = runScriptedPiSession(cancelled.api, "wait", [{ kind: "delay", ms: 1000, response: { kind: "text", text: "late" } }], { signal: controller.signal });
+  setTimeout(() => controller.abort(), 20);
+  assert.equal((await pending).status, "cancelled");
+
+  const failed = await adapter();
+  const failure = await runScriptedPiSession(failed.api, "answer", [{ kind: "provider-error", message: "scripted provider unavailable" }]);
+  assert.equal(failure.status, "provider-error");
+  assert.equal(failure.toolCalls.length, 0);
 });
