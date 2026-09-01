@@ -1,6 +1,6 @@
 # Brick Builder project roadmap and handoff
 
-Status: active planning record, last updated 2026-08-31.
+Status: active planning record, last updated 2026-09-01.
 
 This document is the durable handoff between development tasks. It records the
 current state, architectural direction, ordered milestones, and acceptance
@@ -53,7 +53,10 @@ Completed capabilities include:
 - a portable Hermes skill and live Hermes smoke test;
 - a disposable local-redesign interaction prototype using generic box
   primitives, spatial focus and radius, hard locks, explicit spillover,
-  before/after review, retry, accept, and exact undo.
+  before/after review, retry, accept, and exact undo;
+- a deterministic solid-box projection layer with shaded cuboid faces, global
+  depth ordering, four reproducible cameras, and replayable focus/edit
+  references.
 
 The Hermes experiment proves that an agent can write a candidate, receive
 deterministic feedback, repair invalid geometry, and compile a valid result. It
@@ -205,6 +208,10 @@ Observed results:
   child-facing selection gesture: clicking currently snaps focus to a block
   center, and a short supervised child trial should compare that with free
   surface picking before the production renderer fixes the interaction.
+- The supervising user then tried the running interface and confirmed that
+  rotation, focus movement, feedback, retry, and undo work coherently. The
+  blocks read as flat upward-facing planes rather than solid volumes. This is
+  accepted as a 3A shortcut and becomes the first concrete 3B rendering defect.
 
 ### Milestone 3B: production spatial representation and renderer
 
@@ -221,6 +228,57 @@ Acceptance gates:
 - saved focus and edit references resolve to the same geometry on replay;
 - the home beta tester can distinguish intentionally different concepts before
   any LEGO filling occurs.
+
+Bounded first implementation slice, recorded 2026-09-01:
+
+- retain generic axis-aligned boxes with stable identifiers as the only spatial
+  primitive;
+- render actual cuboid faces with deterministic occlusion/depth ordering rather
+  than the 3A single-plane approximation;
+- provide reproducible front, side, top, and three-quarter cameras;
+- carry the existing focus, lock, changed, and spillover states into the solid
+  renderer with both styling and textual identification;
+- preserve exact session replay and undo for fixed inputs;
+- keep the renderer small and local rather than reproducing Studio's LEGO CAD,
+  connectivity, instruction, or parts-management features.
+
+Slice acceptance gates:
+
+- a non-cubic box visibly presents appropriate top and side faces in the
+  three-quarter view;
+- all four named cameras produce deterministic projected geometry and visibly
+  distinct orientations;
+- selected, locked, changed, and spilled-over boxes remain identifiable in
+  before/after review;
+- stable box and focus references survive serialization and replay;
+- the existing deterministic core, canonical LEGO schema, CLI, and Hermes
+  adapter remain unchanged and all existing tests continue to pass.
+
+Explicit non-goals for this slice are freeform mesh editing, Studio automation,
+LEGOization, connectivity, collision or stability feedback, instructions,
+live model calls, Pi integration, and a universal semantic-parts ontology. The
+home beta tester gate remains pending a supervised trial of the solid renderer.
+
+Slice implementation result, 2026-09-01:
+
+- the single-plane approximation was replaced with projected cuboid faces and
+  deterministic back-to-front drawing across the complete scene;
+- front, side, top, and three-quarter camera presets are available alongside
+  custom drag rotation;
+- the original attempt exposed a geometry/normal mismatch on four faces; root
+  review corrected the cuboid topology and added projected-area and front-face
+  dimension assertions so an edge-on face cannot satisfy the solid-box gate;
+- versioned session replay now validates stable block, focus, lock, camera,
+  changed, and spillover references and reconstructs an in-review proposal;
+- selected, locked, changed, and spilled-over styling and textual identifiers
+  remain present in both canvases;
+- fifty-one automated tests, Python compilation, and diff checks pass. A real
+  Tk widget/canvas smoke rendered 24 visible faces in the three-quarter view
+  and eight correctly oriented front faces for the eight-block boat;
+- Windows screen capture timed out at the Computer Use approval boundary, so
+  no screenshot-based visual judgment is claimed. The supervising user should
+  reopen the UI and confirm that the solid boat fixes the reported flat-plane
+  appearance; the home beta tester comprehension gate remains pending.
 
 ### Milestone 3C: initial LEGOization
 
@@ -339,15 +397,16 @@ substantial exploratory history unrelated to the next implementation slice.
 
 ## Next recommended task
 
-Run one short, adult-supervised manual interaction trial of the disposable 3A
-prototype before implementing Milestone 3B. Check whether the child can rotate
-the boat, understand the focus circle and radius, distinguish locks from
+Close and reopen the local-redesign UI, then run one short adult-supervised
+trial of the solid-box renderer. First confirm that the supervising user now
+reads the boat as solid volumes in the three-quarter view. Then check whether
+the home beta tester can distinguish two intentionally different concepts,
+rotate the boat, understand the focus circle and radius, distinguish locks from
 ordinary selection, notice disclosed spillover, and predict accept versus
 undo. Record whether block-center snapping is understandable or whether free
 surface picking is needed.
 
-If that trial does not reveal a blocking interaction problem, begin only
-Milestone 3B. Use generic simple primitives with stable identifiers as the
-leading representation, but keep the exact selection gesture revisable. Do not
-promote the disposable 3A contract directly into a production schema or begin
-LEGOization, Pi integration, or Studio automation in the same task.
+If the solid rendering and child-comprehension gates pass, close Milestone 3B
+and begin only Milestone 3C's bounded initial LEGOization slice in a fresh task.
+Do not combine that work with Pi integration, Studio automation, or a broader
+parts ontology.

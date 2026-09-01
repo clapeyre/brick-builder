@@ -23,6 +23,12 @@ rotate the blockout. `Lock selected` makes the currently focused boxes hard
 constraints. `Retry` keeps focus and locks, `Accept` applies the proposal, and
 `Undo` restores the exact pre-accept concept.
 
+The renderer now draws shaded cuboid faces with deterministic depth ordering.
+Use the `Front`, `Side`, `Top`, and `Three Quarter` buttons for reproducible
+views; right-drag still provides a temporary custom view. Session serialization
+preserves the boxes, focus anchor, locks, camera, and any in-review proposal so
+the same references and canned edit can be checked on replay.
+
 The deterministic state machine can be exercised without opening a window:
 
 ```powershell

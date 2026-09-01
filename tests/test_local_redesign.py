@@ -1,7 +1,14 @@
 import copy
+import json
 import unittest
 
-from brick_builder.local_redesign import LocalRedesignSession, make_blocky_boat
+from brick_builder.local_redesign import (
+    CAMERA_PRESETS,
+    Block,
+    LocalRedesignSession,
+    make_blocky_boat,
+    project_box,
+)
 
 
 class LocalRedesignSessionTests(unittest.TestCase):
@@ -113,6 +120,89 @@ class LocalRedesignSessionTests(unittest.TestCase):
         session.set_focus((0, 0, 0), radius=1)
         with self.assertRaises(ValueError):
             session.propose(" ")
+
+    def test_three_quarter_projection_has_solid_visible_faces_and_depth_order(self):
+        block = Block("wide-box", (0, 0, 0), (8, 2, 4), "#2878b5")
+        faces = project_box(block, **dict(zip(("yaw", "pitch"), CAMERA_PRESETS["three-quarter"])))
+        names = {face["name"] for face in faces}
+        self.assertIn("top", names)
+        self.assertGreaterEqual(len(names), 3)
+        self.assertEqual(list(faces), sorted(faces, key=lambda face: (face["depth"], face["name"])))
+        self.assertTrue(all(len(face["points"]) == 4 for face in faces))
+        self.assertTrue(all(face["block_id"] == "wide-box" for face in faces))
+        self.assertTrue(all(self._polygon_area(face["points"]) > 0 for face in faces))
+
+    def test_front_projection_uses_the_actual_front_face_dimensions(self):
+        block = Block("wide-box", (0, 0, 0), (8, 2, 4), "#2878b5")
+        faces = project_box(block, yaw=0, pitch=0, scale=10)
+        self.assertEqual([face["name"] for face in faces], ["front"])
+        points = faces[0]["points"]
+        self.assertEqual(max(x for x, _ in points) - min(x for x, _ in points), 80)
+        self.assertEqual(max(y for _, y in points) - min(y for _, y in points), 20)
+
+    def test_named_cameras_are_reproducible_and_distinct(self):
+        block = Block("wide-box", (1, 2, 3), (8, 2, 4), "#2878b5")
+        projections = {
+            name: project_box(block, yaw=yaw, pitch=pitch)
+            for name, (yaw, pitch) in CAMERA_PRESETS.items()
+        }
+        self.assertEqual(projections["front"], project_box(block, yaw=0, pitch=0))
+        self.assertEqual(projections["top"], project_box(block, yaw=0, pitch=90))
+        signatures = {
+            name: tuple((face["name"], face["points"]) for face in faces)
+            for name, faces in projections.items()
+        }
+        self.assertEqual(len(set(signatures.values())), len(CAMERA_PRESETS))
+
+    def test_serialization_round_trip_preserves_stable_box_and_focus_references(self):
+        self.session.set_focus((-4, 1.5, 0), radius=2.25, block_id="block-02")
+        self.session.toggle_lock("block-04")
+        self.session.set_camera("side")
+        encoded = self.session.serialize()
+        restored = LocalRedesignSession.from_serialized(encoded)
+        self.assertEqual(restored.blocks, self.session.blocks)
+        self.assertEqual(restored.focus, self.session.focus)
+        self.assertEqual(restored.locked_ids, self.session.locked_ids)
+        self.assertEqual(restored.snapshot()["camera"], self.session.snapshot()["camera"])
+        self.assertEqual(restored.serialize(), encoded)
+        self.assertEqual(restored.selected_ids, self.session.selected_ids)
+
+    def test_serialization_rejects_unknown_stable_focus_reference(self):
+        value = self.session.snapshot()
+        value["focus"]["block_id"] = "missing-box"
+        value["format"] = "brick-builder.local-redesign/v1"
+        with self.assertRaises(ValueError):
+            LocalRedesignSession.from_serialized(value)
+
+    def test_serialization_replays_in_review_edit_references(self):
+        self.session.set_focus((0, 0, 0), radius=2.1, block_id="block-01")
+        expected = self.session.propose("make this tall")
+        restored = LocalRedesignSession.from_serialized(self.session.serialize())
+        self.assertIsNotNone(restored.proposal)
+        self.assertEqual(restored.proposal.contract, expected.contract)
+        self.assertEqual(restored.serialize(), self.session.serialize())
+
+    def test_serialization_rejects_tampered_camera_and_edit_references(self):
+        self.session.set_camera("front")
+        value = json.loads(self.session.serialize())
+        value["camera"]["yaw"] = 12
+        with self.assertRaises(ValueError):
+            LocalRedesignSession.from_serialized(value)
+
+        self.session.propose("make this tall")
+        value = json.loads(self.session.serialize())
+        value["proposal"]["changed_ids"] = ["missing-box"]
+        with self.assertRaises(ValueError):
+            LocalRedesignSession.from_serialized(value)
+
+    @staticmethod
+    def _polygon_area(points):
+        return abs(
+            sum(
+                x1 * y2 - x2 * y1
+                for (x1, y1), (x2, y2) in zip(points, points[1:] + points[:1])
+            )
+        ) / 2
 
 
 if __name__ == "__main__":
