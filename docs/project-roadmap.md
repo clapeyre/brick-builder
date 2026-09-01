@@ -57,6 +57,9 @@ Completed capabilities include:
 - a deterministic solid-box projection layer with shaded cuboid faces, global
   depth ordering, four reproducible cameras, and replayable focus/edit
   references.
+- a bounded deterministic wall-box LEGOization baseline using the existing
+  rectangular brick and plate profiles, with checked-in scaffold input,
+  target-volume coverage reporting, and structural validation kept separate.
 
 The Hermes experiment proves that an agent can write a candidate, receive
 deterministic feedback, repair invalid geometry, and compile a valid result. It
@@ -215,6 +218,10 @@ Observed results:
 
 ### Milestone 3B: production spatial representation and renderer
 
+Home beta-tester gate: **pending**. The child tester is unavailable during
+school; no child-facing rendering or concept-distinction claim has been made
+for this increment.
+
 Choose the smallest production representation justified by the prototype. It
 may use boxes, other simple primitives, occupied cells, or another inspectable
 spatial form. It must support stable geometry references, reproducible renders,
@@ -302,6 +309,49 @@ Acceptance gates:
 - failures explain which target regions could not be filled;
 - the output passes the existing validators and imports on the Studio stud grid;
 - tests separate target coverage from structural validity.
+
+#### 3C first bounded slice: deterministic wall-box LEGOization
+
+Status: verified first slice (2026-09-01).
+
+Implement one deliberately narrow bridge from a hand-authored, axis-aligned
+wall-like box scaffold to the existing canonical model.  The scaffold is a
+finite stud-grid target volume.  A deterministic tiler may choose only the
+currently supported rectangular bricks and plates from the existing palette,
+then must report both the occupied target volume and any target cells it could
+not cover.  The result is accepted only when the canonical validator separately
+reports a connected, valid assembly.
+
+Acceptance gates for this slice:
+
+- one checked-in wall-like scaffold produces byte-for-byte identical canonical
+  output for repeated fixed-input runs;
+- its target-volume coverage report identifies required, covered, and uncovered
+  cells; no uncovered cells are present in the successful reference case;
+- an intentionally unfillable target produces a deterministic, actionable
+  uncovered-region diagnostic rather than an invalid candidate;
+- the successful candidate passes the existing structural validators, including
+  grounding and connectivity, independently of coverage;
+- focused tests prove that coverage and structural validity are distinct checks;
+- the existing deterministic core, CLI, Hermes integration, and any 3B renderer
+  files present in the checkout remain unchanged in behavior.
+
+Explicit non-goals for this slice: live LLM calls, Pi integration, Studio
+automation, UI expansion, inventory optimization, complex or non-rectangular
+parts, appendages/slopes, and a universal semantic ontology.
+
+Observed results (2026-09-01):
+
+- `examples/scaffolds/wall-box-5x2.json` deterministically produces a
+  four-part canonical model with complete target coverage, no structural
+  issues, and absolute 20 LDU mesh-aligned bounds;
+- an intentionally unsupported depth-two target reports all twelve uncovered
+  plate-cells with an `UNFILLED_TARGET_REGION` diagnostic while its one-stud
+  partial assembly is structurally valid;
+- a four-plate-high wall uses a supported rectangular plate above a brick,
+  proving this slice accepts both supported rectangular bricks and plates;
+- 40 deterministic unit and CLI tests pass. No Studio automation or
+  child-tester review was performed.
 
 ### Milestone 3D: Pi parity slice
 
@@ -407,6 +457,8 @@ undo. Record whether block-center snapping is understandable or whether free
 surface picking is needed.
 
 If the solid rendering and child-comprehension gates pass, close Milestone 3B
-and begin only Milestone 3C's bounded initial LEGOization slice in a fresh task.
-Do not combine that work with Pi integration, Studio automation, or a broader
-parts ontology.
+and, only in a fresh bounded task, extend Milestone 3C with another scaffold
+shape or explicit deterministic tiling failure mode. Keep the 3B home
+beta-tester gate pending until the child tester is available. Do not combine
+that work with Pi integration, Studio automation, a live model loop, UI
+expansion, or a broader parts ontology.

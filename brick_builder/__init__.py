@@ -4,6 +4,7 @@ from .compiler import compile_model
 from .ldraw import LDrawLibrary, discover_ldraw_library
 from .palette import load_palette
 from .validation import ValidationError, validate_model
+from .legoization import CoverageReport, LEGOizationResult, WallBoxScaffold, legoize_wall_box, legoize_wall_box_scaffold
 
 __all__ = [
     "LDrawLibrary",
@@ -12,4 +13,9 @@ __all__ = [
     "discover_ldraw_library",
     "load_palette",
     "validate_model",
+    "CoverageReport",
+    "LEGOizationResult",
+    "WallBoxScaffold",
+    "legoize_wall_box",
+    "legoize_wall_box_scaffold",
 ]
