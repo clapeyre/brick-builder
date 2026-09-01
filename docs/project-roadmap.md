@@ -355,6 +355,51 @@ Observed results (2026-09-01):
 
 ### Milestone 3D: Pi parity slice
 
+#### 3D first bounded slice: offline Pi domain-tool contract
+
+Status: verified first slice (2026-09-01). The supervising user has
+confirmed that the current local interface is clear enough for adult-guided
+use. The home beta-tester comprehension gate remains pending, but does not
+block this non-UI engineering slice.
+
+Add a small pinned TypeScript Pi adapter that exposes only offline,
+domain-specific wrappers over the existing Python JSON CLI. The first slice
+must cover palette inspection, canonical-model validation and analysis,
+deterministic compilation, and the existing offline demo-generation workflow.
+It must own an explicit per-run directory under a caller-provided root, and it
+must never expose a generic shell or arbitrary file-write tool to Pi.
+
+Acceptance gates for this slice:
+
+- the Pi package version is exact-pinned and its adapter configuration exposes
+  only the documented Brick Builder domain operations;
+- scripted fake-model tests cover success, a rejected malformed tool call,
+  bounded repair/exhaustion, cancellation, and provider failure without a live
+  provider or credential;
+- identical accepted canonical models compile to identical LDraw output through
+  the adapter; all paths remain contained in the supplied run root;
+- run artifacts are complete and auditable, and the Python core, CLI, and
+  Hermes integration retain their current behavior;
+- Hermes remains installed and its existing smoke workflow remains passing.
+
+Explicit non-goals: a live provider call, credentials, Pi-driven UI changes,
+Studio automation, arbitrary shell/filesystem access, inventory optimization,
+new LEGOization shapes, and replacing Hermes.
+
+Observed results (2026-09-01):
+
+- `pi-adapter/` pins `@earendil-works/pi-coding-agent` at `0.84.4`; its
+  session configuration disables Pi built-in tools and supplies only five
+  Brick Builder domain wrappers;
+- the wrappers invoke the existing Python JSON CLI with `shell: false`, write
+  only beneath their caller-provided run root, and cover catalog, validation,
+  analysis, compilation, and the existing offline demo fixture;
+- four compiled TypeScript tests pass for success/deterministic compilation,
+  malformed data and path escape rejection, bounded exhaustion, cancellation,
+  and simulated provider failure. No provider credentials or live call were
+  used;
+- the existing 55 Python tests continue to pass and Hermes remains untouched.
+
 Reproduce the bounded Hermes workflow in Pi without changing the Python core.
 The initial tool surface should be domain-specific, approximately:
 
