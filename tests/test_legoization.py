@@ -30,9 +30,9 @@ class LEGOizationTests(unittest.TestCase):
         self.assertIn("3710.dat", {part["part"] for part in result.model["parts"]})
 
     def test_unsupported_depth_reports_actionable_uncovered_region(self):
-        result = legoize_wall_box(WallBoxScaffold(4, 1, depth_studs=2), self.palette)
+        result = legoize_wall_box(WallBoxScaffold(4, 1, depth_studs=3), self.palette)
         self.assertFalse(result.coverage.complete)
-        self.assertEqual(len(result.coverage.uncovered), 12)
+        self.assertEqual(len(result.coverage.uncovered), 24)
         self.assertTrue(any("UNFILLED_TARGET_REGION" in item for item in result.coverage.diagnostics))
         # The partial candidate is still a valid connected assembly: coverage
         # and structural validity are intentionally separate checks.
@@ -43,6 +43,39 @@ class LEGOizationTests(unittest.TestCase):
         # A one-layer odd-width wall needs two bricks, whose side seam has no
         # stud connection.  This demonstrates the independent structural gate.
         result = legoize_wall_box(WallBoxScaffold(5, 1), self.palette)
+        self.assertTrue(result.coverage.complete)
+        self.assertFalse(result.structural_valid)
+        self.assertFalse(result.valid)
+        self.assertTrue(any(issue.code == "DISCONNECTED_ASSEMBLY" for issue in result.structural_issues))
+
+    def test_two_stud_box_is_complete_repeatable_grounded_and_connected(self):
+        target = json.loads((ROOT / "examples" / "scaffolds" / "box-4x2x2.json").read_text())
+        first = legoize_wall_box(target, self.palette)
+        second = legoize_wall_box(target, self.palette)
+        self.assertTrue(first.valid)
+        self.assertTrue(first.coverage.complete)
+        self.assertEqual(first.model, second.model)
+        self.assertEqual(first.coverage.required, first.coverage.covered)
+        self.assertEqual(first.coverage.uncovered, ())
+        self.assertEqual(first.coverage.diagnostics, ())
+        self.assertEqual(first.coverage.diagnostics, ())
+        self.assertTrue(first.structural_valid)
+        self.assertEqual(first.structural_issues, ())
+        self.assertEqual(first.model["parts"][0]["matrix"], [1, 0, 0, 0, 1, 0, 0, 0, 1])
+        validate_model(first.model, self.palette)
+
+    def test_two_stud_box_uses_existing_vertical_rotation_when_needed(self):
+        result = legoize_wall_box(WallBoxScaffold(2, 1, depth_studs=2), self.palette)
+        self.assertTrue(result.valid)
+        self.assertTrue(any(part["matrix"] != [1, 0, 0, 0, 1, 0, 0, 0, 1]
+                            for part in result.model["parts"]))
+        self.assertTrue(all(part["matrix"] in (
+            [1, 0, 0, 0, 1, 0, 0, 0, 1],
+            [0, 0, -1, 0, 1, 0, 1, 0, 0],
+        ) for part in result.model["parts"]))
+
+    def test_two_stud_coverage_and_structure_are_independent(self):
+        result = legoize_wall_box(WallBoxScaffold(5, 1, depth_studs=2), self.palette)
         self.assertTrue(result.coverage.complete)
         self.assertFalse(result.structural_valid)
         self.assertFalse(result.valid)

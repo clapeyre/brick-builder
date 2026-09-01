@@ -353,6 +353,45 @@ Observed results (2026-09-01):
 - 40 deterministic unit and CLI tests pass. No Studio automation or
   child-tester review was performed.
 
+#### 3C second bounded slice: two-stud-deep rectangular box
+
+Status: verified second slice (2026-09-01).
+
+Extend only the deterministic scaffold tiler so a hand-authored, solid
+two-stud-deep rectangular box can be covered by existing rectangular bricks
+and plates. Preserve the one-stud wall behavior exactly. Permit only identity
+and existing vertical 90-degree rotations; use deterministic placement order
+and keep coverage cells and canonical structural validation separate.
+
+Acceptance gates:
+
+- a checked-in two-stud-deep box scaffold yields repeatable complete coverage
+  and a connected, grounded canonical model;
+- an intentionally unsupported depth retains an actionable uncovered-region
+  diagnostic; no silent partial success is permitted;
+- tests cover both orientations, deterministic output, coverage reporting, and
+  the separation of coverage from structural validity;
+- the Python CLI, Pi adapter, Hermes integration, renderer, and existing
+  one-stud wall case retain their behavior.
+
+Explicit non-goals: arbitrary depth, search optimization, inventory use,
+slopes/complex parts, live providers, Pi changes, UI changes, Studio
+automation, and universal semantic labels.
+
+Observed results (2026-09-01):
+
+- `examples/scaffolds/box-4x2x2.json` deterministically produces a fully
+  covered, grounded, connected canonical assembly using only the existing
+  rectangular brick and plate palette;
+- depth-two placement supports only identity and vertical 90-degree rotation;
+  successful reports have no uncovered-region diagnostics, while depth three
+  retains a deterministic `UNFILLED_TARGET_REGION` diagnostic and cannot be
+  reported as a valid result;
+- coverage remains separate from structural validity, including a complete but
+  disconnected two-depth test case;
+- 58 Python tests and Python byte-compilation pass. Pi, Hermes, the CLI, and
+  the local renderer were not changed.
+
 ### Milestone 3D: Pi parity slice
 
 #### 3D first bounded slice: offline Pi domain-tool contract

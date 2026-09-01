@@ -1,6 +1,6 @@
-"""The deliberately small, deterministic 3C wall-box LEGOization bridge.
+"""The deliberately small, deterministic 3C rectangular-box LEGOization bridge.
 
-This module deals only in axis-aligned, one-stud-deep wall boxes.  Coverage is
+This module deals only in axis-aligned, one- and two-stud-deep boxes. Coverage is
 reported independently from canonical-model validation: a partial fill can be
 structurally sound while still failing to satisfy its target volume.
 """
@@ -12,6 +12,7 @@ from .geometry import profiles_from_palette
 from .validation import ValidationError, ValidationIssue, validate_model
 
 IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1]
+ROTATE_Y_90 = [0, 0, -1, 0, 1, 0, 1, 0, 0]
 
 
 @dataclass(frozen=True)
@@ -81,7 +82,7 @@ def legoize_wall_box(
     """Fill one wall-box scaffold using the largest supported brick runs.
 
     Coordinates in coverage cells are ``(x, layer, z)`` with the origin at the
-    lower-left of the target.  Only a one-stud-deep target is in this slice;
+    lower-left of the target.  One- and two-stud-deep targets are supported;
     other depths intentionally produce actionable uncovered diagnostics.
     """
     target = _scaffold(scaffold)
@@ -103,57 +104,99 @@ def legoize_wall_box(
     parts: list[dict[str, Any]] = []
     covered: set[tuple[int, int, int]] = set()
     plate_layer = 0
-    while plate_layer < total_height_plates:
-        remaining_height = total_height_plates - plate_layer
-        part_height = next(
-            (profile.height_plates for profile in rectangular_parts
-             if profile.height_plates <= remaining_height),
-            None,
-        )
-        if part_height is None:
-            break
-        layer_parts = [profile for profile in rectangular_parts
-                       if profile.height_plates == part_height]
-        # Alternate the seam direction for odd widths.  This staggers the
-        # unavoidable 1-stud remainder and gives adjacent layers a stud
-        # connection through their broad bricks.
-        reverse = target.width_studs % 2 == 1 and (plate_layer // part_height) % 2 == 1
-        cursor = target.width_studs if reverse else 0
-        while (cursor > 0 if reverse else cursor < target.width_studs):
-            remaining = cursor if reverse else target.width_studs - cursor
-            profile = next((candidate for candidate in layer_parts if candidate.x_studs <= remaining), None)
-            if profile is None:
+    if target.depth_studs == 2:
+        # For the two-stud slice, tile each horizontal layer in a fixed
+        # row-major order.  A rotated profile is still an ordinary LDraw
+        # part; rotation is around the vertical Y axis only.
+        candidates = []
+        for profile in profiles.values():
+            if profile.category not in {"brick", "plate"}:
+                continue
+            for matrix, width, depth in ((IDENTITY, profile.x_studs, profile.z_studs),
+                                         (ROTATE_Y_90, profile.z_studs, profile.x_studs)):
+                if width <= target.width_studs and depth <= target.depth_studs:
+                    candidates.append((profile, matrix, width, depth))
+        candidates.sort(key=lambda item: (-item[2] * item[3], -item[2], -item[3],
+                                          item[0].height_plates, item[0].part,
+                                          tuple(item[1])))
+        while plate_layer < total_height_plates:
+            remaining_height = total_height_plates - plate_layer
+            part_height = max((p[0].height_plates for p in candidates
+                               if p[0].height_plates <= remaining_height), default=None)
+            if part_height is None:
                 break
-            # RectProfile origins are centered; z=10 places a one-stud wall's
-            # bounding edge on the absolute 20 LDU mesh grid.
-            # The scaffold's x=0 boundary is the global mesh origin.  Using
-            # the run's centre (rather than centring the whole wall) keeps
-            # every individual brick edge on an absolute 20 LDU grid even
-            # when the wall has odd width.
-            start = cursor - profile.x_studs if reverse else cursor
-            x_ldu = (start + profile.x_studs / 2) * 20
-            parts.append({
-                "id": f"wall-p{plate_layer:02d}-x{start:02d}",
-                "part": profile.part,
-                "colour": colour,
-                # Layer zero is the lowest target plate.  A brick occupies
-                # three such layers beneath its LDraw top plane; preserving
-                # that convention lets a one-plate remainder sit directly on
-                # top of a brick at the same stud ports.
-                "translation_ldu": [int(x_ldu), -(plate_layer + profile.height_plates - 3) * 8, 10],
-                "matrix": IDENTITY.copy(),
-            })
-            covered.update(
-                (x, height, 0)
-                for height in range(plate_layer, plate_layer + profile.height_plates)
-                for x in range(start, start + profile.x_studs)
+            layer_candidates = [item for item in candidates if item[0].height_plates == part_height]
+            layer_covered: set[tuple[int, int]] = set()
+            for z in range(target.depth_studs):
+                for x in range(target.width_studs):
+                    if (x, z) in layer_covered:
+                        continue
+                    choice = next((item for item in layer_candidates
+                                   if x + item[2] <= target.width_studs
+                                   and z + item[3] <= target.depth_studs
+                                   and all((xx, zz) not in layer_covered
+                                           for xx in range(x, x + item[2])
+                                           for zz in range(z, z + item[3]))), None)
+                    if choice is None:
+                        continue
+                    profile, matrix, width, depth = choice
+                    x_ldu = int((x + width / 2) * 20)
+                    z_ldu = int((z + depth / 2) * 20)
+                    parts.append({
+                        "id": f"box2-p{plate_layer:02d}-x{x:02d}-z{z:02d}",
+                        "part": profile.part,
+                        "colour": colour,
+                        "translation_ldu": [x_ldu, -(plate_layer + profile.height_plates - 3) * 8, z_ldu],
+                        "matrix": list(matrix),
+                    })
+                    cells = {(xx, zz) for xx in range(x, x + width)
+                             for zz in range(z, z + depth)}
+                    layer_covered.update(cells)
+                    covered.update((xx, height, zz) for xx, zz in cells
+                                   for height in range(plate_layer, plate_layer + part_height))
+            plate_layer += part_height
+    else:
+        # Preserve the original one-stud tiler byte-for-byte.  Unsupported
+        # depths intentionally retain its useful partial candidate and
+        # uncovered-region diagnostic.
+        while plate_layer < total_height_plates:
+            remaining_height = total_height_plates - plate_layer
+            part_height = next(
+                (profile.height_plates for profile in rectangular_parts
+                 if profile.height_plates <= remaining_height),
+                None,
             )
-            cursor = start if reverse else start + profile.x_studs
-        plate_layer += part_height
+            if part_height is None:
+                break
+            layer_parts = [profile for profile in rectangular_parts
+                           if profile.height_plates == part_height]
+            reverse = target.width_studs % 2 == 1 and (plate_layer // part_height) % 2 == 1
+            cursor = target.width_studs if reverse else 0
+            while (cursor > 0 if reverse else cursor < target.width_studs):
+                remaining = cursor if reverse else target.width_studs - cursor
+                profile = next((candidate for candidate in layer_parts if candidate.x_studs <= remaining), None)
+                if profile is None:
+                    break
+                start = cursor - profile.x_studs if reverse else cursor
+                x_ldu = (start + profile.x_studs / 2) * 20
+                parts.append({
+                    "id": f"wall-p{plate_layer:02d}-x{start:02d}",
+                    "part": profile.part,
+                    "colour": colour,
+                    "translation_ldu": [int(x_ldu), -(plate_layer + profile.height_plates - 3) * 8, 10],
+                    "matrix": IDENTITY.copy(),
+                })
+                covered.update(
+                    (x, height, 0)
+                    for height in range(plate_layer, plate_layer + profile.height_plates)
+                    for x in range(start, start + profile.x_studs)
+                )
+                cursor = start if reverse else start + profile.x_studs
+            plate_layer += part_height
     covered_cells = tuple(cell for cell in required if cell in covered)
     uncovered = tuple(cell for cell in required if cell not in covered)
     diagnostics = []
-    if target.depth_studs != 1:
+    if target.depth_studs not in {1, 2}:
         diagnostics.append(
             f"UNFILLED_TARGET_REGION: depth {target.depth_studs} is outside the one-stud wall tiler; "
             f"uncovered cells include z=1..{target.depth_studs - 1}"
