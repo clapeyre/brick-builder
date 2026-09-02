@@ -1,0 +1,6 @@
+{
+  "format": "brick-builder.demo-brief/v1",
+  "request": "Make a tiny red stepped box with a narrower upper tier.",
+  "intent": "small solid red stepped box",
+  "constraints": {"orthogonal": true, "depth_studs": 2, "adult_supervised": true}
+}

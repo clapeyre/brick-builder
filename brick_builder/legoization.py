@@ -250,7 +250,11 @@ def legoize_stepped_box(
     if isinstance(scaffold, SteppedBoxScaffold):
         target = scaffold
     elif isinstance(scaffold, Mapping):
-        target = SteppedBoxScaffold(**scaffold)
+        # ``kind`` is replay routing metadata, not part of the scaffold
+        # geometry accepted by this LEGOizer.
+        target = SteppedBoxScaffold(**{
+            key: value for key, value in scaffold.items() if key != "kind"
+        })
     else:
         raise TypeError("scaffold must be a SteppedBoxScaffold or mapping")
 

@@ -15,7 +15,7 @@ from typing import Any
 from .compiler import compile_model
 from .generation import _analysis_document, finalize_manifest
 from .geometry import profiles_from_palette, transformed_profile, validate_geometry
-from .legoization import legoize_wall_box
+from .legoization import legoize_stepped_box, legoize_wall_box
 from .local_redesign import Block, project_box
 from .palette import load_palette
 from .validation import repair_hint, validate_model
@@ -84,7 +84,25 @@ def replay_demo(request_path: str | Path, brief_path: str | Path, scaffold_path:
     _write(root / "request.txt", request)
     _write(root / "brief.json", brief)
     _write(root / "scaffold.json", scaffold)
-    result = legoize_wall_box(scaffold, palette)
+    # Existing fixtures intentionally omit ``kind`` and retain the original
+    # wall-box route.  New fixture families must opt in explicitly; creative
+    # request text is never used to infer a LEGOizer.
+    scaffold_kind = scaffold.get("kind", "wall_box")
+    legoizer_scaffold = {key: value for key, value in scaffold.items() if key != "kind"}
+    if scaffold_kind == "wall_box":
+        result = legoize_wall_box(legoizer_scaffold, palette)
+    elif scaffold_kind == "stepped_box":
+        result = legoize_stepped_box(legoizer_scaffold, palette)
+    else:
+        issue = {
+            "code": "UNKNOWN_SCAFFOLD_KIND",
+            "path": "scaffold.kind",
+            "message": f"unsupported scaffold kind {scaffold_kind!r}; expected 'wall_box' or 'stepped_box'",
+            "repair_hint": "Set scaffold.kind to 'wall_box' or 'stepped_box'.",
+        }
+        _write(root / "failure.json", {"valid": False, "issues": [issue]})
+        manifest = finalize_manifest(root, outcome="failed", attempts=1, max_attempts=1, palette_path=palette_path, adapter="OfflineEndToEndReplay")
+        return {"valid": False, "outcome": "failed", "run_dir": str(root), "manifest": manifest, "issues": [issue]}
     _write(root / "coverage.json", {"required": [list(c) for c in result.coverage.required], "covered": [list(c) for c in result.coverage.covered], "uncovered": [list(c) for c in result.coverage.uncovered], "complete": result.coverage.complete, "diagnostics": list(result.coverage.diagnostics)})
     if not result.coverage.complete or not result.structural_valid:
         issues = [{"code": i.code, "path": i.path, "message": i.message, "repair_hint": repair_hint(i.code)} for i in result.structural_issues]

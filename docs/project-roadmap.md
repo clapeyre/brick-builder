@@ -435,6 +435,48 @@ Observed results (2026-09-02):
 - the original one- and two-depth box tiler was not changed. Focused tests,
   the full Python suite, byte-compilation, and diff checks pass.
 
+#### 3C fourth bounded slice: stepped fixture in offline demo replay
+
+Status: verified (2026-09-02).
+
+Route one explicitly tagged, checked-in stepped scaffold fixture through the
+existing fixture-driven demo replay. The replay selects the existing wall-box
+or centered stepped-box LEGOizer from the scaffold's declared kind; it must not
+infer a shape family from creative text. Add a matching request and brief so a
+fresh replay demonstrates the new non-box shape through validation, LDraw,
+fixed renders, render evidence, and a manifest.
+
+Acceptance gates:
+
+- the existing untagged wall-box fixture continues through its prior path with
+  stable successful artifacts;
+- a tagged stepped fixture produces a repeatable, valid, complete contained
+  run with the existing named artifacts and a visibly multi-tier three-quarter
+  render;
+- unsupported known scaffolds still stop before final LDraw and render output;
+  an unknown scaffold kind yields an actionable contained failure rather than
+  silently selecting a LEGOizer;
+- no new provider, Pi, Hermes, UI, renderer, or production brief/scaffold
+  schema is introduced.
+
+Explicit non-goals: natural-language parsing, live provider or vision calls,
+automatic scaffold selection, arbitrary scaffold unions, visual resemblance
+scoring, Studio automation, and child testing.
+
+Observed results (2026-09-02):
+
+- the replay now routes only an explicit `kind: "stepped_box"` fixture to the
+  centered stepped LEGOizer; the pre-existing untagged fixture retains its
+  wall-box route and creative request text is never used for dispatch;
+- the checked-in stepped request, brief, and scaffold replay deterministically
+  to a complete valid two-tier model, LDraw file, fixed SVG renders, render
+  evidence, and manifest; the upper tier is visibly elevated in the
+  three-quarter projection;
+- an unknown scaffold kind produces contained `failure.json` evidence and a
+  failed manifest before any canonical model, LDraw, or render output exists;
+- 65 Python tests, byte-compilation, and diff checks pass. Pi, Hermes, UI, and
+  renderer behavior were not changed.
+
 ### Milestone 3D: Pi parity slice
 
 #### 3D first bounded slice: offline Pi domain-tool contract
