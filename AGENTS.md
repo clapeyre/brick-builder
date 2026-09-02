@@ -60,3 +60,12 @@
   and reviewable. Do not change the remote or repository visibility, push
   secrets or generated run artifacts, or push a knowingly failing increment
   unless the owner explicitly requests it.
+- The root integrator owns commits, pushes, and all external Git/network
+  operations. Subagents may inspect Git state and prepare a bounded handoff,
+  but must not push, change remotes, alter SSH or credential settings, or switch
+  transport as a workaround.
+- If a subagent cannot push because its execution environment blocks GitHub or
+  SSH access, it must not retry or diagnose credentials. It should report the
+  prepared files, verification performed, and (if one exists) the commit hash
+  to the root integrator as a handoff; this is not a product verification
+  failure.
