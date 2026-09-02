@@ -53,6 +53,7 @@ class ConceptRedesignSession:
         if camera in ("front", "side", "top", "three-quarter"):
             self.local.set_camera(camera)
         self.evidence: list[dict[str, Any]] = []
+        self._undo_state: str | None = None
 
     @classmethod
     def from_spatial_session(
@@ -106,6 +107,7 @@ class ConceptRedesignSession:
         return record
 
     def accept(self) -> GenericBoxConcept:
+        self._undo_state = self.local.serialize()
         self.local.accept()
         self.accepted_concept = GenericBoxConcept(
             self.starting_concept.id,
@@ -117,7 +119,11 @@ class ConceptRedesignSession:
         return self.accepted_concept
 
     def undo(self) -> GenericBoxConcept:
-        self.local.undo()
+        if self._undo_state is not None:
+            self.local = LocalRedesignSession.from_serialized(self._undo_state)
+            self._undo_state = None
+        else:
+            self.local.undo()
         self.accepted_concept = GenericBoxConcept(
             self.starting_concept.id,
             self.starting_concept.label,
@@ -134,6 +140,7 @@ class ConceptRedesignSession:
             "starting_concept": self.starting_concept.to_dict(),
             "accepted_concept": self.accepted_concept.to_dict(),
             "local_redesign": json.loads(self.local.serialize()),
+            "undo_state": json.loads(self._undo_state) if self._undo_state is not None else None,
             "evidence": copy.deepcopy(self.evidence),
         }
 
@@ -148,6 +155,8 @@ class ConceptRedesignSession:
         starting = _concept_from_dict(value["starting_concept"])
         session = cls(starting, value.get("request_text", ""))
         session.local = LocalRedesignSession.from_serialized(value["local_redesign"])
+        undo_state = value.get("undo_state")
+        session._undo_state = json.dumps(undo_state, sort_keys=True, separators=(",", ":")) if undo_state is not None else None
         session.accepted_concept = _concept_from_dict(value["accepted_concept"])
         evidence = value.get("evidence", [])
         if not isinstance(evidence, list):

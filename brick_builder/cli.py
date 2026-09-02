@@ -7,6 +7,7 @@ from importlib.resources import files
 from pathlib import Path
 
 from .compiler import compile_model
+from .concept_redesign import ConceptRedesignSession, _concept_from_dict
 from .demo_replay import replay_candidate_set, replay_demo, select_candidate
 from .generation import finalize_manifest, generate
 from .geometry import profiles_from_palette, validate_geometry
@@ -208,6 +209,34 @@ def spatial_concepts_command(args):
     return {**result, "valid": False}
 
 
+def concept_redesign_command(args):
+    state_path = args.run_dir / "concept-redesign.json"
+    if args.operation == "start":
+        if args.concept is None:
+            raise ValueError("--concept is required for start")
+        concept = json.loads(args.concept.read_text(encoding="utf-8"))
+        session = ConceptRedesignSession(_concept_from_dict(concept), args.request_text)
+    else:
+        session = ConceptRedesignSession.from_serialized(state_path.read_text(encoding="utf-8"))
+    if args.operation == "focus":
+        session.set_focus(json.loads(args.point), args.radius, block_id=args.block_id)
+    elif args.operation == "lock":
+        session.lock_selected()
+    elif args.operation == "propose":
+        session.propose(args.instruction)
+    elif args.operation == "retry":
+        session.retry(args.instruction)
+    elif args.operation == "accept":
+        session.accept()
+    elif args.operation == "undo":
+        session.undo()
+    elif args.operation != "start":
+        raise ValueError(f"unsupported redesign operation: {args.operation}")
+    args.run_dir.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(session.serialize() + "\n", encoding="utf-8", newline="\n")
+    return {"valid": True, **session.snapshot(), "state_path": str(state_path)}
+
+
 def main(argv=None):
     if argv is None:
         import sys
@@ -215,7 +244,7 @@ def main(argv=None):
         argv = sys.argv[1:]
     if (
         len(argv) >= 2
-        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "demo-replay", "demo-candidate-set", "select-candidate", "spatial-concepts", "manifest", "-h", "--help"}
+        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "demo-replay", "demo-candidate-set", "select-candidate", "spatial-concepts", "concept-redesign", "manifest", "-h", "--help"}
         and not argv[0].startswith("-")
     ):
         argv = ["compile", *argv]
@@ -284,6 +313,17 @@ def main(argv=None):
     spatial_parser.add_argument("--response", type=Path, required=True)
     spatial_parser.add_argument("--run-dir", type=Path, required=True)
     spatial_parser.set_defaults(handler=spatial_concepts_command)
+
+    redesign_parser = subparsers.add_parser("concept-redesign")
+    redesign_parser.add_argument("operation", choices=("start", "focus", "lock", "propose", "retry", "accept", "undo"))
+    redesign_parser.add_argument("--run-dir", type=Path, required=True)
+    redesign_parser.add_argument("--concept", type=Path)
+    redesign_parser.add_argument("--request-text", default="")
+    redesign_parser.add_argument("--point", default="[0, 0, 0]")
+    redesign_parser.add_argument("--radius", type=float, default=3.0)
+    redesign_parser.add_argument("--block-id")
+    redesign_parser.add_argument("--instruction")
+    redesign_parser.set_defaults(handler=concept_redesign_command)
 
     args = parser.parse_args(argv)
     try:

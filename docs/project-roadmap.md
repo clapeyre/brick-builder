@@ -1333,8 +1333,7 @@ Observed results (2026-09-02):
 
 ### MVP slice 1: natural-language request to spatial concept session
 
-Status: first bounded contract implemented (2026-09-02); Pi runtime verification
-remains pending because the local package store is missing a transitive module.
+Status: verified (2026-09-02).
 
 Begin the actual creative loop without imposing a child-facing ontology or
 revision command grammar. An adult-configured provider may receive a
@@ -1377,13 +1376,51 @@ Observed results (2026-09-02):
 - the `spatial-concepts` CLI writes the validated session plus deterministic SVG
   previews under the supplied run directory, and the Pi adapter exposes it only
   through `brick_spatial_concepts` while retaining `noTools: "builtin"`;
-- focused Python coverage passes, including byte-identical previews and a
-  concept-id path-containment guard. Full Python and Pi verification is not yet
-  green in this checkout: the bundled Python lacks the pre-existing
-  `jsonschema` package, and the local Pi install cannot load the already-pinned
-  runtime's transitive `@earendil-works/pi-telemetry` module.
+- full Python and Pi verification now passes in the bootstrapped worktree after
+  elevated frozen-lockfile setup; the Pi suite includes the real scripted
+  session and concept submission coverage.
 
 The follow-on MVP slice should connect accepted spatial concepts to progressively
 broader deterministic LEGOization, while retaining the same focus/lock/local
 redesign contract. This sequencing makes model understanding observable and
 correctable before expanding the physical LEGO shape vocabulary.
+
+### MVP slice 1 follow-up: accepted concept to local redesign session
+
+Status: verified (2026-09-02).
+
+Connect one accepted `brick-builder.spatial-concept/v1` concept to the existing
+spatial-focus and local-redesign protocol. The concept remains generic-box
+geometry: this slice makes selection, locks, ordinary-language local edits,
+visible spillover, retry, accept, and exact undo replayable from the accepted
+concept without introducing semantic part names or LEGOization.
+
+Acceptance gates:
+
+- an accepted concept can be restored by stable geometry references into a
+  local-redesign session without changing its boxes or camera evidence;
+- focus selection, hard locks, and an ordinary-language local request are
+  recorded together with before/after geometry, changed ids, and spillover;
+- a local proposal cannot change locked or protected boxes, retry preserves the
+  focus and locks, accept records the resulting concept, and undo restores the
+  exact accepted starting state;
+- a bounded offline adapter/session test can perform the flow through explicit
+  Brick Builder domain operations while retaining `noTools: "builtin"`;
+- existing spatial-concept, local-redesign, renderer, Python, Hermes, and Pi
+  behavior remains passing.
+
+Explicit non-goals: semantic ontology or resemblance scoring, free-form whole
+model regeneration, LEGOization, Studio automation, UI changes, live provider
+calls, child testing, purchasing, publishing, or external export.
+
+Observed results (2026-09-02):
+
+- `ConceptRedesignSession` restores one accepted generic-box concept into the
+  existing local-redesign contract while preserving stable boxes and camera;
+- focus, hard locks, ordinary-language proposals, visible spillover, retry,
+  accept, and exact undo are recorded in deterministic serialized evidence;
+- the CLI persists the pre-accept state so undo remains correct across separate
+  contained domain calls, and the Pi adapter exposes the flow through
+  `brick_concept_redesign` with no new built-ins or filesystem surface;
+- 91 Python tests and 15 Pi adapter tests pass, with TypeScript type-checking,
+  byte-compilation, and diff checks passing.

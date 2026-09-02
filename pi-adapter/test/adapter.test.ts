@@ -16,7 +16,7 @@ async function adapter() {
 
 test("domain tools expose only the explicit Brick Builder operations", () => {
   const { api } = { api: new BrickBuilderAdapter({ runRoot: "C:/runs/test" }) };
-  assert.deepEqual(createBrickBuilderTools(api).map((tool) => tool.name), ["brick_catalog", "brick_validate", "brick_analyze", "brick_compile", "brick_demo_generate", "brick_demo_candidate_set", "brick_select_candidate", "brick_submit_brief", "brick_request_candidates", "brick_spatial_concepts"]);
+  assert.deepEqual(createBrickBuilderTools(api).map((tool) => tool.name), ["brick_catalog", "brick_validate", "brick_analyze", "brick_compile", "brick_demo_generate", "brick_demo_candidate_set", "brick_select_candidate", "brick_submit_brief", "brick_request_candidates", "brick_spatial_concepts", "brick_concept_redesign"]);
   assert.equal((createPiSessionOptions(api) as any).noTools, "builtin");
 });
 
@@ -36,6 +36,24 @@ test("spatial concept submission preserves the request and writes deterministic 
   assert.equal(result.request_text, "  Make a friendly rover!  ");
   assert.ok(await stat(join(root, "render-concept-1.svg")));
   assert.ok(await stat(join(root, "spatial-concept-session.json")));
+});
+
+test("accepted concept redesign stays contained and preserves locked geometry", async () => {
+  const { root, api } = await adapter();
+  const concept = { id: "lookout-a", label: "A", geometry: [
+    { ref: "base", center: [0, 0, 0], size: [4, 1, 4], color: "#2878b5" },
+    { ref: "tower", center: [0, 2, 0], size: [2, 3, 2], color: "#f5a623" },
+  ], render: { camera: "three-quarter", geometry_refs: ["base", "tower"] } };
+  assert.equal((await api.conceptRedesign("start", { concept, requestText: "make a tiny lookout" })).valid, true);
+  await api.conceptRedesign("focus", { point: [0, 0, 0], radius: 0.75, blockId: "base" });
+  await api.conceptRedesign("lock");
+  const proposal = await api.conceptRedesign("propose", { instruction: "make the tower taller" });
+  assert.equal(proposal.valid, true);
+  assert.deepEqual(((proposal.local_redesign as { proposal: { changed_ids: string[] } }).proposal).changed_ids, ["tower"]);
+  await api.conceptRedesign("accept");
+  const undone = await api.conceptRedesign("undo");
+  assert.equal(undone.valid, true);
+  assert.ok(await stat(join(root, "concept-redesign.json")));
 });
 
 test("offline candidate replay and explicit selection stay contained and produce a receipt", async () => {

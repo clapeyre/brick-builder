@@ -6,11 +6,11 @@ import { Type } from "@sinclair/typebox";
 import { createAgentSession, defineTool, ModelRuntime, SessionManager, SettingsManager, type ToolDefinition, type CreateAgentSessionOptions } from "@earendil-works/pi-coding-agent";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall, type FauxResponseStep } from "@earendil-works/pi-ai";
 
-export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate" | "submit-brief" | "request-candidates" | "spatial-concepts";
+export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate" | "submit-brief" | "request-candidates" | "spatial-concepts" | "concept-redesign";
 export type RunnerOptions = { runRoot: string; python?: string; repositoryRoot?: string; signal?: AbortSignal };
 export type CommandResult = { valid: boolean; [key: string]: unknown };
 
-const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate", "submit-brief", "request-candidates", "spatial-concepts"] as const;
+const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate", "submit-brief", "request-candidates", "spatial-concepts", "concept-redesign"] as const;
 const here = dirname(fileURLToPath(import.meta.url));
 const defaultRepo = resolve(here, "../..");
 export const OFFLINE_CANDIDATE_FIXTURE = "towers-with-gatehouse" as const;
@@ -137,11 +137,35 @@ export class BrickBuilderAdapter {
     await writeFile(responsePath, JSON.stringify(response, null, 2) + "\n", "utf8");
     return invoke(["spatial-concepts", "--request", requestPath, "--response", responsePath, "--run-dir", this.runRoot], this.options);
   }
+
+  async conceptRedesign(operation: string, options: { concept?: Record<string, unknown>; requestText?: string; point?: number[]; radius?: number; blockId?: string; instruction?: string } = {}): Promise<CommandResult> {
+    const args = ["concept-redesign", operation, "--run-dir", this.runRoot];
+    if (operation === "start") {
+      if (!options.concept) throw new Error("concept is required for redesign start");
+      const conceptPath = contained(this.runRoot, resolve(this.runRoot, "accepted-concept.json"));
+      await writeFile(conceptPath, JSON.stringify(options.concept, null, 2) + "\n", "utf8");
+      args.push("--concept", conceptPath, "--request-text", options.requestText ?? "");
+    }
+    if (options.point) args.push("--point", JSON.stringify(options.point));
+    if (options.radius !== undefined) args.push("--radius", String(options.radius));
+    if (options.blockId) args.push("--block-id", options.blockId);
+    if (options.instruction) args.push("--instruction", options.instruction);
+    return invoke(args, this.options);
+  }
 }
 
 const modelSchema = Type.Object({ model: Type.Record(Type.String(), Type.Unknown()) });
 const briefSchema = Type.Object({ format: Type.String(), intent: Type.String(), constraints: Type.Record(Type.String(), Type.Unknown()) });
 const spatialResponseSchema = Type.Record(Type.String(), Type.Unknown());
+const conceptRedesignSchema = Type.Object({
+  operation: Type.Union(["start", "focus", "lock", "propose", "retry", "accept", "undo"].map((value) => Type.Literal(value)) as any),
+  concept: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+  request: Type.Optional(Type.String()),
+  point: Type.Optional(Type.Array(Type.Number(), { minItems: 3, maxItems: 3 })),
+  radius: Type.Optional(Type.Number({ exclusiveMinimum: 0 })),
+  block_id: Type.Optional(Type.String()),
+  instruction: Type.Optional(Type.String()),
+});
 export function createBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefinition[] {
   const tool = (name: string, description: string, parameters: any, execute: (id: string, p: any) => Promise<any>) => defineTool({ name, label: name, description, parameters, execute });
   return [
@@ -155,6 +179,7 @@ export function createBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefin
     tool("brick_submit_brief", "Submit a small schema-validated creative brief; only the supported small-building vocabulary is accepted.", briefSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.submitBrief(p)) }], details: {} })),
     tool("brick_request_candidates", "Request the declared offline candidate set for an accepted brief. No paths or ranking are model-controlled.", Type.Object({ family: Type.String() }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.requestCandidates(p.family)) }], details: {} })),
     tool("brick_spatial_concepts", "Submit a bounded model response for a natural-language spatial concept request. The raw request and fixed previews are retained under the run root.", Type.Object({ request: Type.String(), response: spatialResponseSchema }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.spatialConcepts(p.request, p.response)) }], details: {} })),
+    tool("brick_concept_redesign", "Focus, lock, propose, retry, accept, or undo a local redesign of one accepted generic-box concept. State stays inside this run root.", conceptRedesignSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.conceptRedesign(p.operation, { concept: p.concept, requestText: p.request, point: p.point, radius: p.radius, blockId: p.block_id, instruction: p.instruction })) }], details: {} })),
   ];
 }
 
