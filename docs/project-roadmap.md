@@ -60,7 +60,7 @@ checks known engineering constraints and preserves the full evidence trail.
 The repository contains the deterministic foundation, bounded agent harnesses,
 and offline candidate, rendering, selection, headless child-facing controller,
 critique-operation evaluation, semantic-critique evidence, and prompt-set
-evaluation demonstrations.
+evaluation demonstrations, and one bounded visual-repair operation.
 It does not yet demonstrate that a model understands an arbitrary creative
 request or performs a real child-facing local redesign on a LEGO candidate.
 
@@ -1702,7 +1702,7 @@ Observed results (2026-09-02):
   are written; non-integral proposals remain rejected with the prior accepted
   concept and proposal available;
 - the restricted Pi adapter exposes the state machine through one named domain
-  tool with `noTools` still `builtin`; 134 Python tests and 21 Pi adapter tests
+  tool with `noTools` still `builtin`; 137 Python tests and 21 Pi adapter tests
   pass, with TypeScript type-checking, byte-compilation, and diff checks passing.
 
 ### MVP slice 1 headless child-facing controller
@@ -1925,9 +1925,57 @@ Observed results (2026-09-02):
 This verifies offline evaluation bookkeeping, not evidence that visual repairs
 improve real-world resemblance or child preference.
 
+### MVP slice 5: bounded grounded height reduction
+
+Status: verified (2026-09-02).
+
+Add one explicit visual-repair operation, `decrease-height`, for a selected
+one-box candidate. It accepts an integral reduction in plates within a small
+bound, preserves the box's grounded origin, and routes the resulting proposal
+through the existing reversible selected-candidate redesign and LEGOization
+bridge. This is an operation contract and validity demonstration, not a claim
+that shorter is visually better for every prompt.
+
+Acceptance gates:
+
+- the operation has a versioned, explainable artifact with target block,
+  bounded integral amount, before/after proposal, and engineering validation;
+- a valid reduction creates an accepted, grounded candidate with a changed
+  height and preserves the baseline evidence for comparison;
+- reductions that would violate the positive-height bound or any bridge rule
+  are rejected without changing the accepted baseline and retain diagnostics;
+- malformed, unknown, fractional, negative, and over-bound parameters are
+  rejected actionably;
+- repeated fixed-input repairs are deterministic and add no ranking,
+  resemblance score, automatic selection, or child-preference claim.
+
+Explicit non-goals: general visual repair planning, multi-box height edits,
+semantic quality claims, live vision or model providers, automatic unbounded
+repair, new LEGO geometry, child testing, UI/Tk work, Studio automation,
+export, purchasing, publishing, or physical-build claims.
+
+Observed results (2026-09-02):
+
+- the versioned `brick-builder.bounded-visual-repair/v1` artifact records the
+  selected candidate, integral reduction, baseline bridge evidence, explicit
+  before/after proposal, bridge result, grounding result, and safety claims;
+- a one-plate reduction changes a grounded one-box candidate from height 3 to
+  height 2 and is accepted through the selected-candidate redesign session and
+  existing LEGOization bridge validation;
+- zero, negative, fractional, non-integer-typed, over-bound, and
+  positive-height-violating reductions are rejected with baseline preservation
+  and actionable diagnostics;
+- repeated fixed-input repairs are deterministic and make no ranking,
+  resemblance, or child-preference claim;
+- 137 Python tests, 21 Pi adapter tests, TypeScript type-checking,
+  byte-compilation, and diff checks pass.
+
+This verifies one bounded repair operation, not broad visual-repair quality.
+
 ### Next recommended task
 
-Add one bounded visual-repair operation beyond recolor/height, or proceed to the
-separate supervised child-preference evidence gate. Keep any new operation
-fixture-driven, revalidated, and free of automatic ranking or resemblance truth
-claims.
+Run the separate supervised child-preference evaluation with the six-year-old
+beta tester. Record which candidate or revision is preferred, the prompt and
+adult-supervision context, and any qualitative notes; treat those observations
+as evaluation evidence rather than deterministic labels. No code change is
+required until that evidence is available.
