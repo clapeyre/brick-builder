@@ -1,9 +1,10 @@
+import hashlib
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from brick_builder.demo_replay import replay_candidate_set, replay_demo
+from brick_builder.demo_replay import replay_candidate_set, replay_demo, select_candidate
 
 ROOT = Path(__file__).parents[1]
 PALETTE = ROOT / "brick_builder/palettes/classic-core-v0.json"
@@ -11,6 +12,50 @@ DEMO = ROOT / "examples/demo"
 
 
 class DemoReplayTests(unittest.TestCase):
+    def test_selection_receipt_copies_each_valid_choice_without_mutation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            source_result = replay_candidate_set(DEMO / "tiny-red-tower.request.txt", DEMO / "tiny-red-tower.brief.json", DEMO / "candidate-set-boxes.json", base / "set", PALETTE)
+            source = base / "set"
+            before = {path.relative_to(source): path.read_bytes() for path in source.rglob("*") if path.is_file()}
+            for candidate_id in ("compact-box", "stepped-box"):
+                destination = base / candidate_id
+                selected = select_candidate(source, candidate_id, destination, PALETTE)
+                self.assertTrue(selected["valid"])
+                receipt = json.loads((destination / "selection.json").read_text())
+                self.assertEqual(receipt["selected_candidate_id"], candidate_id)
+                self.assertEqual(set(receipt["selected_artifact_hashes"]), {"legoized.json", "final.ldr", "validation.json", "analysis.json", "render-front.svg", "render-three-quarter.svg", "render-evidence.json"})
+                self.assertEqual(selected["manifest"]["source_child_manifest_sha256"], receipt["source_child_manifest_sha256"])
+                self.assertNotIn(str(source), (destination / "selection.json").read_text())
+            self.assertEqual(before, {path.relative_to(source): path.read_bytes() for path in source.rglob("*") if path.is_file()})
+
+    def test_selection_preflights_unknown_failed_and_tampered_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            replay_candidate_set(DEMO / "tiny-red-tower.request.txt", DEMO / "tiny-red-tower.brief.json", DEMO / "candidate-set-boxes.json", base / "set", PALETTE)
+            source = base / "set"
+            with self.assertRaises(ValueError):
+                select_candidate(source, "missing", base / "unknown", PALETTE)
+            (source / "candidates/compact-box/final.ldr").write_text("tampered", encoding="utf-8")
+            destination = base / "tampered"
+            with self.assertRaises(ValueError):
+                select_candidate(source, "compact-box", destination, PALETTE)
+            self.assertFalse(destination.exists())
+            mismatch_source = base / "set-mismatch"
+            replay_candidate_set(DEMO / "tiny-red-tower.request.txt", DEMO / "tiny-red-tower.brief.json", DEMO / "candidate-set-boxes.json", mismatch_source, PALETTE)
+            index_path = mismatch_source / "candidate-index.json"
+            index = json.loads(index_path.read_text())
+            index["candidates"][0]["manifest_sha256"] = "0" * 64
+            index_path.write_text(json.dumps(index), encoding="utf-8")
+            root_manifest_path = mismatch_source / "manifest.json"
+            root_manifest = json.loads(root_manifest_path.read_text())
+            root_manifest["files"]["candidate-index.json"] = hashlib.sha256(index_path.read_bytes()).hexdigest()
+            root_manifest_path.write_text(json.dumps(root_manifest), encoding="utf-8")
+            mismatch_destination = base / "mismatch"
+            with self.assertRaises(ValueError):
+                select_candidate(mismatch_source, "compact-box", mismatch_destination, PALETTE)
+            self.assertFalse(mismatch_destination.exists())
+
     def test_candidate_set_replays_two_ordered_candidates_without_selection(self):
         fixture = DEMO / "candidate-set-boxes.json"
         with tempfile.TemporaryDirectory() as directory:

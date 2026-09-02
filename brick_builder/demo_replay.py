@@ -10,11 +10,12 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
 from pathlib import Path
 from typing import Any
 
 from .compiler import compile_model
-from .generation import _analysis_document, finalize_manifest
+from .generation import _analysis_document, _canonical_hash, finalize_manifest
 from .geometry import profiles_from_palette, transformed_profile, validate_geometry
 from .legoization import legoize_stepped_box, legoize_wall_box
 from .local_redesign import Block, project_box
@@ -131,6 +132,16 @@ def replay_demo(request_path: str | Path, brief_path: str | Path, scaffold_path:
 
 _CANDIDATE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
+_SELECTED_ARTIFACTS = (
+    "legoized.json",
+    "final.ldr",
+    "validation.json",
+    "analysis.json",
+    "render-front.svg",
+    "render-three-quarter.svg",
+    "render-evidence.json",
+)
+
 
 def _candidate_failure(root: Path, message: str, palette_path: str | Path) -> dict[str, Any]:
     """Persist an orchestrator-level failure so one child remains auditable."""
@@ -219,3 +230,119 @@ def replay_candidate_set(
     _write(root / "candidate-index.json", {"schema_version": 1, "candidates": results, "outcome": overall})
     manifest = finalize_manifest(root, outcome=overall, attempts=1, max_attempts=1, palette_path=palette_path, adapter="OfflineCandidateSetReplay")
     return {"valid": overall == "success", "outcome": overall, "run_dir": str(root), "candidate_index": results, "manifest": manifest}
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def select_candidate(
+    candidate_set_run: str | Path,
+    candidate_id: str,
+    destination: str | Path,
+    palette_path: str | Path,
+) -> dict[str, Any]:
+    """Copy one explicitly selected candidate into a fresh auditable bundle.
+
+    All source index, manifest, and artifact checks happen before ``destination``
+    is created.  The receipt contains identifiers and hashes only, so it is
+    portable and does not disclose source filesystem paths.
+    """
+    source = Path(candidate_set_run)
+    output = Path(destination)
+    if not isinstance(candidate_id, str) or not _CANDIDATE_ID.fullmatch(candidate_id):
+        raise ValueError("candidate id must be an exact valid identifier")
+    if output.exists():
+        raise ValueError(f"selection destination already exists: {output}")
+
+    root_manifest_path = source / "manifest.json"
+    index_path = source / "candidate-index.json"
+    if not source.is_dir() or not root_manifest_path.is_file() or not index_path.is_file():
+        raise ValueError("candidate-set run must contain manifest.json and candidate-index.json")
+    try:
+        root_manifest = json.loads(root_manifest_path.read_text(encoding="utf-8"))
+        index = json.loads(index_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"invalid candidate-set evidence: {exc}") from exc
+    if root_manifest.get("outcome") != "success":
+        raise ValueError("candidate-set run is not successful")
+    selection_palette = load_palette(palette_path)
+    if (root_manifest.get("palette_id") != selection_palette.get("id")
+            or root_manifest.get("palette_sha256") != _canonical_hash(selection_palette)):
+        raise ValueError("selection palette does not match the candidate-set run")
+    root_files = root_manifest.get("files")
+    if not isinstance(root_files, dict) or root_files.get("candidate-index.json") != _sha256(index_path):
+        raise ValueError("candidate index does not match the root manifest")
+    if not isinstance(index.get("candidates"), list) or index.get("outcome") != "success":
+        raise ValueError("candidate index is incomplete or unsuccessful")
+    matches = [entry for entry in index["candidates"] if isinstance(entry, dict) and entry.get("id") == candidate_id]
+    if len(matches) != 1:
+        raise ValueError(f"unknown candidate id: {candidate_id}")
+    entry = matches[0]
+    if entry.get("status") != "valid" or entry.get("outcome") != "success":
+        raise ValueError(f"candidate is not selectable: {candidate_id}")
+
+    child = source / "candidates" / candidate_id
+    child_manifest_path = child / "manifest.json"
+    if not child_manifest_path.is_file():
+        raise ValueError("selected candidate child manifest is missing")
+    child_manifest_hash = _sha256(child_manifest_path)
+    if entry.get("manifest_sha256") != child_manifest_hash:
+        raise ValueError("candidate index does not match the child manifest")
+    try:
+        child_manifest = json.loads(child_manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"invalid child manifest: {exc}") from exc
+    if child_manifest.get("outcome") != "success" or not isinstance(child_manifest.get("files"), dict):
+        raise ValueError("selected candidate child manifest is not successful")
+    model_path = child / "legoized.json"
+    if not model_path.is_file():
+        raise ValueError("selected candidate model is missing")
+    try:
+        model = json.loads(model_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"invalid selected candidate model: {exc}") from exc
+    model_id = model.get("model_id") if isinstance(model, dict) else None
+    if not isinstance(model_id, str) or entry.get("model_id") != model_id:
+        raise ValueError("candidate index model id does not match the child model")
+
+    artifact_hashes: dict[str, str] = {}
+    for name in _SELECTED_ARTIFACTS:
+        path = child / name
+        expected = child_manifest["files"].get(name)
+        if not path.is_file() or not isinstance(expected, str) or _sha256(path) != expected:
+            raise ValueError(f"selected artifact is missing or tampered: {name}")
+        artifact_hashes[name] = expected
+
+    source_manifest_hash = _sha256(root_manifest_path)
+    receipt = {
+        "schema_version": 1,
+        "selected_candidate_id": candidate_id,
+        "model_id": model_id,
+        "source_candidate_set_manifest_sha256": source_manifest_hash,
+        "source_child_manifest_sha256": child_manifest_hash,
+        "selected_artifact_hashes": artifact_hashes,
+    }
+    output.mkdir(parents=True)
+    for name in _SELECTED_ARTIFACTS:
+        shutil.copyfile(child / name, output / name)
+    _write(output / "selection.json", receipt)
+    selection_manifest = finalize_manifest(
+        output,
+        outcome="success",
+        attempts=1,
+        max_attempts=1,
+        palette_path=palette_path,
+        adapter="OfflineCandidateSelection",
+    )
+    # Keep the generic artifact manifest while adding the explicit provenance
+    # binding required by the selection contract.
+    selection_manifest.update({
+        "selected_candidate_id": candidate_id,
+        "model_id": model_id,
+        "source_candidate_set_manifest_sha256": source_manifest_hash,
+        "source_child_manifest_sha256": child_manifest_hash,
+        "selected_artifact_hashes": artifact_hashes,
+    })
+    _write(output / "manifest.json", selection_manifest)
+    return {"valid": True, "outcome": "success", "run_dir": str(output), "selection": receipt, "manifest": selection_manifest}

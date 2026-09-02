@@ -523,6 +523,51 @@ Observed results (2026-09-02):
 - 68 Python tests, byte-compilation, and diff checks pass. No Pi, Hermes, UI,
   provider, or renderer changes were made.
 
+#### 4A first bounded slice: explicit selected-candidate receipt
+
+Status: verified (2026-09-02).
+
+Add one adult-controlled, deterministic selection action over a completed
+candidate-set run. Given an exact valid candidate id and a fresh destination,
+it verifies the root index against the candidate's child manifest, copies the
+selected canonical model, LDraw, fixed renders, render evidence, validation,
+and analysis unchanged, then writes a selection receipt and manifest that bind
+the source candidate-set and child-manifest hashes. Selection is an explicit
+choice, never a ranking or regeneration.
+
+Acceptance gates:
+
+- selecting `compact-box` or `stepped-box` produces a separate auditable,
+  byte-identical selected-output bundle with no model mutation;
+- selection rejects an unknown or failed id, candidate-index/child-manifest
+  mismatch, or missing/hash-mismatched selected artifact before creating its
+  output directory;
+- selection receipt and manifest identify the selected stable id, model id,
+  source candidate-set manifest hash, child manifest hash, and selected
+  artifact hashes without depending on source absolute paths;
+- existing candidate replay and both candidate artifact chains remain
+  unchanged; no UI, ranking, live provider, Pi/Hermes, Studio, purchasing, or
+  publishing action is introduced.
+
+Explicit non-goals: child-facing controls, candidate comparison UI, automatic
+choice, local redesign, live models, physical-build claims, external export,
+or destructive replacement of a previous selection.
+
+Observed results (2026-09-02):
+
+- `select-candidate` accepts an explicit valid stable id from a successful
+  candidate-set run and creates a fresh bundle containing byte-identical
+  canonical model, LDraw, validation, analysis, fixed renders, and render
+  evidence;
+- `selection.json` and the selection manifest bind the chosen id/model to
+  source root and child-manifest SHA-256 values plus each copied artifact hash,
+  without storing source paths or changing the source candidate run;
+- unknown, failed, tampered, index/child-manifest-mismatched, or palette-
+  mismatched selections fail before a destination exists. No ranking or model
+  rewrite occurs;
+- 70 Python tests, byte-compilation, and diff checks pass. No UI, Pi, Hermes,
+  provider, Studio, purchasing, or publishing behavior was added.
+
 ### Milestone 3D: Pi parity slice
 
 #### 3D first bounded slice: offline Pi domain-tool contract

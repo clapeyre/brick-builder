@@ -7,7 +7,7 @@ from importlib.resources import files
 from pathlib import Path
 
 from .compiler import compile_model
-from .demo_replay import replay_candidate_set, replay_demo
+from .demo_replay import replay_candidate_set, replay_demo, select_candidate
 from .generation import finalize_manifest, generate
 from .geometry import profiles_from_palette, validate_geometry
 from .ldraw import discover_ldraw_library
@@ -193,6 +193,10 @@ def demo_candidate_set_command(args):
     return replay_candidate_set(args.request_file, args.brief, args.candidates, args.run_dir, args.palette)
 
 
+def select_candidate_command(args):
+    return select_candidate(args.candidate_set_run, args.candidate_id, args.destination, args.palette)
+
+
 def main(argv=None):
     if argv is None:
         import sys
@@ -200,7 +204,7 @@ def main(argv=None):
         argv = sys.argv[1:]
     if (
         len(argv) >= 2
-        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "demo-replay", "demo-candidate-set", "manifest", "-h", "--help"}
+        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "demo-replay", "demo-candidate-set", "select-candidate", "manifest", "-h", "--help"}
         and not argv[0].startswith("-")
     ):
         argv = ["compile", *argv]
@@ -256,6 +260,13 @@ def main(argv=None):
     candidate_set_parser.add_argument("--run-dir", type=Path, required=True)
     candidate_set_parser.add_argument("--palette", type=Path, default=DEFAULT_PALETTE)
     candidate_set_parser.set_defaults(handler=demo_candidate_set_command)
+
+    selection_parser = subparsers.add_parser("select-candidate")
+    selection_parser.add_argument("--candidate-set-run", type=Path, required=True)
+    selection_parser.add_argument("--candidate-id", required=True)
+    selection_parser.add_argument("--destination", type=Path, required=True)
+    selection_parser.add_argument("--palette", type=Path, default=DEFAULT_PALETTE)
+    selection_parser.set_defaults(handler=select_candidate_command)
 
     args = parser.parse_args(argv)
     try:
