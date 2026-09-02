@@ -1333,7 +1333,8 @@ Observed results (2026-09-02):
 
 ### MVP slice 1: natural-language request to spatial concept session
 
-Status: planned (2026-09-02).
+Status: first bounded contract implemented (2026-09-02); Pi runtime verification
+remains pending because the local package store is missing a transitive module.
 
 Begin the actual creative loop without imposing a child-facing ontology or
 revision command grammar. An adult-configured provider may receive a
@@ -1366,6 +1367,21 @@ claims that every request is understood, unrestricted geometry, automatic
 whole-model rewrites after a concept is selected, child testing before the loop
 is coherent, Studio automation, purchasing, publishing, or physical-build
 claims.
+
+Observed results (2026-09-02):
+
+- `brick_builder.spatial_concept` preserves request text verbatim and validates
+  either one clarification or two/three generic-box concepts with stable safe
+  identifiers, bounded dimensions, fixed camera descriptors, and actionable
+  three-attempt feedback;
+- the `spatial-concepts` CLI writes the validated session plus deterministic SVG
+  previews under the supplied run directory, and the Pi adapter exposes it only
+  through `brick_spatial_concepts` while retaining `noTools: "builtin"`;
+- focused Python coverage passes, including byte-identical previews and a
+  concept-id path-containment guard. Full Python and Pi verification is not yet
+  green in this checkout: the bundled Python lacks the pre-existing
+  `jsonschema` package, and the local Pi install cannot load the already-pinned
+  runtime's transitive `@earendil-works/pi-telemetry` module.
 
 The follow-on MVP slice should connect accepted spatial concepts to progressively
 broader deterministic LEGOization, while retaining the same focus/lock/local

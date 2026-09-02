@@ -12,6 +12,7 @@ from .generation import finalize_manifest, generate
 from .geometry import profiles_from_palette, validate_geometry
 from .ldraw import discover_ldraw_library
 from .palette import load_palette
+from .spatial_concept import SpatialConceptSession, write_session_artifacts
 from .validation import ValidationError, repair_hint, validate_model
 
 
@@ -197,6 +198,16 @@ def select_candidate_command(args):
     return select_candidate(args.candidate_set_run, args.candidate_id, args.destination, args.palette)
 
 
+def spatial_concepts_command(args):
+    request = args.request.read_text(encoding="utf-8")
+    response = json.loads(args.response.read_text(encoding="utf-8"))
+    session = SpatialConceptSession(request)
+    result = session.submit(response)
+    if result["status"] in {"success", "clarification"}:
+        return {"valid": True, **write_session_artifacts(session, args.run_dir)}
+    return {**result, "valid": False}
+
+
 def main(argv=None):
     if argv is None:
         import sys
@@ -204,7 +215,7 @@ def main(argv=None):
         argv = sys.argv[1:]
     if (
         len(argv) >= 2
-        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "demo-replay", "demo-candidate-set", "select-candidate", "manifest", "-h", "--help"}
+        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "demo-replay", "demo-candidate-set", "select-candidate", "spatial-concepts", "manifest", "-h", "--help"}
         and not argv[0].startswith("-")
     ):
         argv = ["compile", *argv]
@@ -267,6 +278,12 @@ def main(argv=None):
     selection_parser.add_argument("--destination", type=Path, required=True)
     selection_parser.add_argument("--palette", type=Path, default=DEFAULT_PALETTE)
     selection_parser.set_defaults(handler=select_candidate_command)
+
+    spatial_parser = subparsers.add_parser("spatial-concepts")
+    spatial_parser.add_argument("--request", type=Path, required=True)
+    spatial_parser.add_argument("--response", type=Path, required=True)
+    spatial_parser.add_argument("--run-dir", type=Path, required=True)
+    spatial_parser.set_defaults(handler=spatial_concepts_command)
 
     args = parser.parse_args(argv)
     try:

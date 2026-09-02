@@ -16,8 +16,26 @@ async function adapter() {
 
 test("domain tools expose only the explicit Brick Builder operations", () => {
   const { api } = { api: new BrickBuilderAdapter({ runRoot: "C:/runs/test" }) };
-  assert.deepEqual(createBrickBuilderTools(api).map((tool) => tool.name), ["brick_catalog", "brick_validate", "brick_analyze", "brick_compile", "brick_demo_generate", "brick_demo_candidate_set", "brick_select_candidate", "brick_submit_brief", "brick_request_candidates"]);
+  assert.deepEqual(createBrickBuilderTools(api).map((tool) => tool.name), ["brick_catalog", "brick_validate", "brick_analyze", "brick_compile", "brick_demo_generate", "brick_demo_candidate_set", "brick_select_candidate", "brick_submit_brief", "brick_request_candidates", "brick_spatial_concepts"]);
   assert.equal((createPiSessionOptions(api) as any).noTools, "builtin");
+});
+
+test("spatial concept submission preserves the request and writes deterministic previews", async () => {
+  const { root, api } = await adapter();
+  const response = {
+    kind: "concepts",
+    concepts: [1, 2].map((index) => ({
+      id: `concept-${index}`,
+      label: `box idea ${index}`,
+      geometry: [{ ref: `concept-${index}/box-1`, center: [0, 0, 0], size: [4, 2, 3], color: "#2878b5" }],
+      render: { camera: "three-quarter", width: 430, height: 360, scale: 24, geometry_refs: [`concept-${index}/box-1`] },
+    })),
+  };
+  const result = await api.spatialConcepts("  Make a friendly rover!  ", response);
+  assert.equal(result.status, "success");
+  assert.equal(result.request_text, "  Make a friendly rover!  ");
+  assert.ok(await stat(join(root, "render-concept-1.svg")));
+  assert.ok(await stat(join(root, "spatial-concept-session.json")));
 });
 
 test("offline candidate replay and explicit selection stay contained and produce a receipt", async () => {

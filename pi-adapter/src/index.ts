@@ -6,11 +6,11 @@ import { Type } from "@sinclair/typebox";
 import { createAgentSession, defineTool, ModelRuntime, SessionManager, SettingsManager, type ToolDefinition, type CreateAgentSessionOptions } from "@earendil-works/pi-coding-agent";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall, type FauxResponseStep } from "@earendil-works/pi-ai";
 
-export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate" | "submit-brief" | "request-candidates";
+export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate" | "submit-brief" | "request-candidates" | "spatial-concepts";
 export type RunnerOptions = { runRoot: string; python?: string; repositoryRoot?: string; signal?: AbortSignal };
 export type CommandResult = { valid: boolean; [key: string]: unknown };
 
-const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate", "submit-brief", "request-candidates"] as const;
+const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate", "submit-brief", "request-candidates", "spatial-concepts"] as const;
 const here = dirname(fileURLToPath(import.meta.url));
 const defaultRepo = resolve(here, "../..");
 export const OFFLINE_CANDIDATE_FIXTURE = "towers-with-gatehouse" as const;
@@ -128,10 +128,20 @@ export class BrickBuilderAdapter {
     const candidateRoot = contained(this.runRoot, resolve(this.runRoot, "candidate-set"));
     return invoke(["demo-candidate-set", "--request-file", request, "--brief", brief, "--candidates", candidates, "--run-dir", candidateRoot], { ...this.options, runRoot: candidateRoot }, false);
   }
+
+  async spatialConcepts(requestText: string, response: Record<string, unknown>): Promise<CommandResult> {
+    if (typeof requestText !== "string" || !requestText.trim()) throw new Error("request must be a non-empty string");
+    const requestPath = contained(this.runRoot, resolve(this.runRoot, "spatial-request.txt"));
+    const responsePath = contained(this.runRoot, resolve(this.runRoot, "spatial-response.json"));
+    await writeFile(requestPath, requestText, "utf8");
+    await writeFile(responsePath, JSON.stringify(response, null, 2) + "\n", "utf8");
+    return invoke(["spatial-concepts", "--request", requestPath, "--response", responsePath, "--run-dir", this.runRoot], this.options);
+  }
 }
 
 const modelSchema = Type.Object({ model: Type.Record(Type.String(), Type.Unknown()) });
 const briefSchema = Type.Object({ format: Type.String(), intent: Type.String(), constraints: Type.Record(Type.String(), Type.Unknown()) });
+const spatialResponseSchema = Type.Record(Type.String(), Type.Unknown());
 export function createBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefinition[] {
   const tool = (name: string, description: string, parameters: any, execute: (id: string, p: any) => Promise<any>) => defineTool({ name, label: name, description, parameters, execute });
   return [
@@ -144,6 +154,7 @@ export function createBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefin
     tool("brick_select_candidate", "Select one explicitly named candidate from the contained replay and write its receipt.", Type.Object({ candidate_id: Type.Union(OFFLINE_CANDIDATE_IDS.map((id) => Type.Literal(id)) as any) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.selectCandidate(p.candidate_id)) }], details: {} })),
     tool("brick_submit_brief", "Submit a small schema-validated creative brief; only the supported small-building vocabulary is accepted.", briefSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.submitBrief(p)) }], details: {} })),
     tool("brick_request_candidates", "Request the declared offline candidate set for an accepted brief. No paths or ranking are model-controlled.", Type.Object({ family: Type.String() }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.requestCandidates(p.family)) }], details: {} })),
+    tool("brick_spatial_concepts", "Submit a bounded model response for a natural-language spatial concept request. The raw request and fixed previews are retained under the run root.", Type.Object({ request: Type.String(), response: spatialResponseSchema }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.spatialConcepts(p.request, p.response)) }], details: {} })),
   ];
 }
 
