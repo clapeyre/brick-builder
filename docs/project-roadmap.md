@@ -59,7 +59,8 @@ checks known engineering constraints and preserves the full evidence trail.
 
 The repository contains the deterministic foundation, bounded agent harnesses,
 and offline candidate, rendering, selection, headless child-facing controller,
-critique-operation evaluation, and semantic-critique evidence demonstrations.
+critique-operation evaluation, semantic-critique evidence, and prompt-set
+evaluation demonstrations.
 It does not yet demonstrate that a model understands an arbitrary creative
 request or performs a real child-facing local redesign on a LEGO candidate.
 
@@ -1701,7 +1702,7 @@ Observed results (2026-09-02):
   are written; non-integral proposals remain rejected with the prior accepted
   concept and proposal available;
 - the restricted Pi adapter exposes the state machine through one named domain
-  tool with `noTools` still `builtin`; 130 Python tests and 21 Pi adapter tests
+  tool with `noTools` still `builtin`; 134 Python tests and 21 Pi adapter tests
   pass, with TypeScript type-checking, byte-compilation, and diff checks passing.
 
 ### MVP slice 1 headless child-facing controller
@@ -1874,10 +1875,59 @@ Observed results (2026-09-02):
 This verifies fixture-grounded semantic evidence, not semantic truth or a
 complete visual-repair evaluation.
 
+### MVP slice 4: offline prompt evaluation set
+
+Status: verified (2026-09-02).
+
+Add a small deterministic evaluation-set contract over checked-in baseline and
+revision evidence. Each case records a prompt fixture, the selected candidate,
+the declared bounded operation, semantic-critique findings before and after,
+and engineering-validation outcomes. The evaluator compares only declared
+findings and validity outcomes, so it can report improvement, regression, or
+unchanged evidence without ranking candidates or inventing semantic truth.
+
+Acceptance gates:
+
+- a versioned evaluation-set artifact records every case, its prompt and
+  candidate provenance, operation-evaluation reference, before/after critique
+  findings, and case outcome;
+- at least one checked-in-style case reports improvement or preservation and at
+  least one reports regression/rejection, with engineering validity kept
+  separate from semantic-critique findings;
+- case inputs validate the existing semantic-critique and critique-operation
+  formats, reject duplicate or malformed cases actionably, and retain source
+  hashes for deterministic replay;
+- repeated fixed-input evaluation is byte-identical and the aggregate reports
+  counts and evidence without ranks, winners, preference labels, or
+  resemblance scores;
+- the contract remains offline and does not perform new repair, selection, or
+  provider calls.
+
+Explicit non-goals: live vision or model providers, automatic repair, new LEGO
+geometry, candidate ranking, child preference testing, UI/Tk work, Studio
+automation, export, purchasing, publishing, or physical-build claims.
+
+Observed results (2026-09-02):
+
+- a versioned `brick-builder.prompt-evaluation/v1` artifact records each case's
+  prompt, selected candidate, operation evidence, before/after semantic
+  findings, engineering-validity comparison, outcome, and source hashes;
+- the checked-in-style cases report improvement, rejection, and regression
+  separately, while preserving the distinction between engineering validity and
+  declared semantic findings;
+- duplicate cases, prompt/candidate/hash mismatches, inconsistent operation
+  status, and malformed validity fields are rejected actionably;
+- repeated fixed-input aggregation is byte-identical, writable to an explicit
+  path, and emits no ranks, winners, preferences, or resemblance scores;
+- 134 Python tests, 21 Pi adapter tests, TypeScript type-checking,
+  byte-compilation, and diff checks pass.
+
+This verifies offline evaluation bookkeeping, not evidence that visual repairs
+improve real-world resemblance or child preference.
+
 ### Next recommended task
 
-Add a small checked-in prompt evaluation set covering at least one accepted and
-one rejected bounded revision. Compare engineering validity and declared
-fixture findings before and after each operation, report improvement versus
-regression without ranking candidates, and keep child preference evidence as a
-separate supervised evaluation concern.
+Add one bounded visual-repair operation beyond recolor/height, or proceed to the
+separate supervised child-preference evidence gate. Keep any new operation
+fixture-driven, revalidated, and free of automatic ranking or resemblance truth
+claims.
