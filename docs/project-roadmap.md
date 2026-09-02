@@ -700,6 +700,40 @@ Observed results (2026-09-02):
 - 76 Python tests, byte-compilation, and diff checks pass. Candidate artifacts
   and restricted integrations remain unchanged.
 
+#### 4A selector follow-up: natural horizontal drag direction
+
+Status: verified (2026-09-02).
+
+Reverse only the fixture selector's horizontal mouse-drag yaw mapping so a
+rightward drag turns the displayed 3D model rightward under the current
+orthographic projection. Preserve per-candidate state, vertical pitch mapping,
+and exact Reset view behavior.
+
+Acceptance gates:
+
+- a rightward controller/UI drag produces the yaw direction that moves the
+  model's visible orientation rightward; a leftward drag is its inverse;
+- vertical drag, independent candidate camera state, deterministic fitting,
+  and reset remain unchanged;
+- focused tests express the screen-drag-to-yaw mapping independently of Tk,
+  and the full suite, byte-compilation, and diff checks pass.
+
+Explicit non-goals: changing canonical LDraw rotations, local-redesign drag
+behavior, camera presets, free-camera physics, or any generation/selection
+artifact.
+
+Observed results (2026-09-02):
+
+- the fixture selector now maps positive horizontal screen movement to negative
+  camera yaw, which makes a rightward drag turn the displayed model rightward
+  under its existing projection convention. Vertical pitch mapping is
+  unchanged;
+- focused tests assert the screen-drag mapping, independent candidate state,
+  and retained exact reset behavior; no canonical, local-redesign, generation,
+  selection, or integration behavior changed;
+- 77 Python tests, byte-compilation, and diff checks pass. The bundled
+  runtime's Tk smoke remains skipped solely for its missing Tcl/Tk data.
+
 ### Milestone 3D: Pi parity slice
 
 #### 3D first bounded slice: offline Pi domain-tool contract

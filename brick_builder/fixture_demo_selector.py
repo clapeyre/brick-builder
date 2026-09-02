@@ -141,6 +141,15 @@ class FixtureDemoController:
         self._preview_views[candidate_id] = state
         return dict(state)
 
+    def drag_preview(self, candidate_id: str, screen_dx: float = 0.0, screen_dy: float = 0.0) -> dict[str, float]:
+        """Apply a screen-space drag using the preview's natural direction convention.
+
+        The orthographic preview's horizontal screen axis is opposite the
+        camera yaw axis, so dragging right decreases yaw.  Vertical movement
+        retains the existing pitch direction.
+        """
+        return self.rotate_preview(candidate_id, delta_yaw=-float(screen_dx), delta_pitch=float(screen_dy))
+
     def reset_preview(self, candidate_id: str) -> dict[str, float]:
         if candidate_id not in self.candidate_ids:
             raise ValueError(f"unknown candidate id: {candidate_id}")
@@ -258,7 +267,7 @@ class FixtureDemoApp:
             self._press(candidate_id, event)
             return
         self._drag_start[candidate_id] = (event.x, event.y)
-        self.controller.rotate_preview(candidate_id, event.x - previous[0], event.y - previous[1])
+        self.controller.drag_preview(candidate_id, event.x - previous[0], event.y - previous[1])
         self._draw_preview(candidate_id)
 
     def _reset_view(self, candidate_id: str) -> None:

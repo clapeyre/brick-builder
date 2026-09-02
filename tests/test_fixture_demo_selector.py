@@ -67,6 +67,15 @@ class FixtureDemoControllerTests(unittest.TestCase):
             self.assertEqual(controller.reset_preview("compact-box"), {"yaw": -35.0, "pitch": 25.0})
             self.assertEqual(controller.preview_faces("compact-box"), original)
 
+    def test_screen_drag_maps_rightward_motion_to_negative_yaw(self):
+        with tempfile.TemporaryDirectory() as directory:
+            controller = FixtureDemoController(directory)
+
+            state = controller.drag_preview("compact-box", screen_dx=12, screen_dy=4)
+
+            self.assertEqual(state, {"yaw": -47.0, "pitch": 29.0})
+            self.assertEqual(controller.preview_state("stepped-box"), {"yaw": -35.0, "pitch": 25.0})
+
     def test_failed_candidate_set_is_not_exposed_as_generated(self):
         with tempfile.TemporaryDirectory() as directory:
             failed_run = Path(directory) / "tower-choices-001"
