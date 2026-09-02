@@ -1,8 +1,10 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
+import brick_builder.fixture_demo_selector as selector
 from brick_builder.fixture_demo_selector import FixtureDemoController, FixtureDemoApp, tk
 
 
@@ -43,6 +45,35 @@ class FixtureDemoControllerTests(unittest.TestCase):
             self.assertNotEqual(first, second)
             self.assertTrue(first.is_dir())
             self.assertTrue(second.is_dir())
+
+    def test_failed_candidate_set_is_not_exposed_as_generated(self):
+        with tempfile.TemporaryDirectory() as directory:
+            failed_run = Path(directory) / "tower-choices-001"
+            failed = {
+                "valid": False,
+                "outcome": "failed",
+                "run_dir": str(failed_run),
+                "candidate_index": [
+                    {"id": "compact-box", "status": "failed", "issues": [{
+                        "code": "SCHEMA_DEPENDENCY",
+                        "message": "jsonschema dependency is required for structural validation",
+                    }]},
+                    {"id": "stepped-box", "status": "failed", "issues": [{
+                        "code": "SCHEMA_DEPENDENCY",
+                        "message": "jsonschema dependency is required for structural validation",
+                    }]},
+                ],
+            }
+            controller = FixtureDemoController(directory)
+            with patch.object(selector, "replay_candidate_set", return_value=failed):
+                with self.assertRaisesRegex(ValueError, "SCHEMA_DEPENDENCY.*docs/demo-setup.md"):
+                    controller.create_tower_choices()
+            self.assertFalse(controller.generated)
+            self.assertIsNone(controller.candidate_set_run)
+            with self.assertRaisesRegex(ValueError, "create tower choices"):
+                controller.preview_faces("compact-box")
+            with self.assertRaisesRegex(ValueError, "create tower choices"):
+                controller.select("compact-box")
 
 
 @unittest.skipIf(tk is None, "Tk is unavailable in this Python runtime")

@@ -20,7 +20,7 @@ from .geometry import profiles_from_palette, transformed_profile, validate_geome
 from .legoization import legoize_stepped_box, legoize_wall_box
 from .local_redesign import Block, project_box
 from .palette import load_palette
-from .validation import repair_hint, validate_model
+from .validation import ValidationError, repair_hint, validate_model
 
 
 COLOURS = {0: "#202124", 1: "#0055bf", 2: "#237841", 4: "#c91a09", 14: "#f2cd37", 15: "#ffffff", 25: "#fe8a18"}
@@ -143,7 +143,7 @@ _SELECTED_ARTIFACTS = (
 )
 
 
-def _candidate_failure(root: Path, message: str, palette_path: str | Path) -> dict[str, Any]:
+def _candidate_failure(root: Path, message: str, palette_path: str | Path, *, issues: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Persist an orchestrator-level failure so one child remains auditable."""
     issue = {
         "code": "CANDIDATE_REPLAY_ERROR",
@@ -151,12 +151,13 @@ def _candidate_failure(root: Path, message: str, palette_path: str | Path) -> di
         "message": message,
         "repair_hint": "Check the candidate scaffold fixture and replay inputs.",
     }
-    _write(root / "failure.json", {"valid": False, "issues": [issue]})
+    failure_issues = issues or [issue]
+    _write(root / "failure.json", {"valid": False, "issues": failure_issues})
     manifest = finalize_manifest(
         root, outcome="failed", attempts=1, max_attempts=1,
         palette_path=palette_path, adapter="OfflineCandidateSetReplay",
     )
-    return {"valid": False, "outcome": "failed", "run_dir": str(root), "manifest": manifest, "issues": [issue]}
+    return {"valid": False, "outcome": "failed", "run_dir": str(root), "manifest": manifest, "issues": failure_issues}
 
 
 def replay_candidate_set(
@@ -212,6 +213,9 @@ def replay_candidate_set(
         child.parent.mkdir(parents=True, exist_ok=True)
         try:
             result = replay_demo(request_path, brief_path, scaffold, child, palette_path)
+        except ValidationError as exc:  # retain structured validator diagnostics
+            issues = [{"code": issue.code, "path": issue.path, "message": issue.message, "repair_hint": repair_hint(issue.code)} for issue in exc.issues]
+            result = _candidate_failure(child, str(exc), palette_path, issues=issues)
         except (OSError, ValueError) as exc:  # retain an auditable failed child and continue
             result = _candidate_failure(child, str(exc), palette_path)
         manifest_path = child / "manifest.json"
@@ -225,6 +229,8 @@ def replay_candidate_set(
             "model_id": result.get("model_id"),
             "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
         }
+        if result.get("issues"):
+            entry["issues"] = result["issues"]
         results.append(entry)
     overall = "success" if all(item["status"] == "valid" for item in results) else "failed"
     _write(root / "candidate-index.json", {"schema_version": 1, "candidates": results, "outcome": overall})

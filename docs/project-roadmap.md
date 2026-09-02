@@ -614,6 +614,49 @@ Observed results (2026-09-02):
   network, Pi, Hermes, Studio, purchasing, publishing, or model generation was
   added.
 
+#### 4A selector follow-up: dependency and failed-run guard
+
+Status: verified (2026-09-02).
+
+Harden the local fixture selector against an interpreter missing the project's
+runtime dependency or any other failed candidate set. The controller must not
+enter its generated state, load a preview, or enable selection when the replay
+returns an unsuccessful result. It must surface an actionable, non-technical
+setup message that identifies the missing `jsonschema` dependency when that is
+the cause and preserves the failed run's artifacts for diagnosis.
+
+Acceptance gates:
+
+- a simulated failed candidate-set result leaves controller generation false
+  and selection impossible, while identifying the stable failed candidates and
+  actionable issue codes in its error;
+- the Tk view keeps both selection buttons disabled after failed generation and
+  displays the actionable status rather than a missing-file traceback;
+- local setup instructions state how to install the project dependencies into
+  the same desktop Python interpreter that launches the selector;
+- successful controller and existing candidate/selection behavior remain
+  unchanged; no auto-install, network call, provider, Pi/Hermes, or general
+  filesystem capability is introduced.
+
+Explicit non-goals: automatic dependency installation, hiding failed artifacts,
+free-text generation, UI redesign, ranking, Studio launch, or child testing.
+
+Observed results (2026-09-02):
+
+- candidate-set replay now preserves structured failures in each candidate
+  index entry. The fixture controller only enters generated state when the set
+  succeeds; otherwise it leaves selection and preview unavailable and reports
+  the stable ids and underlying diagnostic;
+- the observed missing-`jsonschema` desktop-interpreter failure is surfaced as
+  `SCHEMA_DEPENDENCY` with a setup pointer rather than a missing
+  `legoized.json` error. Failed run artifacts remain available for diagnosis;
+- [`docs/demo-setup.md`](demo-setup.md) supplies Windows PowerShell commands
+  for a dedicated `.demo-venv` using the same desktop Python that launches the
+  selector; that environment is ignored by Git. The application never installs
+  dependencies itself;
+- 74 Python tests, byte-compilation, and diff checks pass; one Tk smoke is
+  skipped solely because the bundled runtime cannot initialize Tcl/Tk.
+
 ### Milestone 3D: Pi parity slice
 
 #### 3D first bounded slice: offline Pi domain-tool contract

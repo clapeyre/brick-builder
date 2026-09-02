@@ -58,12 +58,31 @@ class FixtureDemoController:
 
     @property
     def generated(self) -> bool:
-        return self.candidate_set_run is not None and self.result is not None
+        return self.candidate_set_run is not None and bool(self.result and self.result.get("valid"))
 
     def create_tower_choices(self) -> dict[str, Any]:
         """Create a fresh contained two-candidate tower run."""
         run = _next_directory(self.run_root, "tower-choices")
         result = replay_candidate_set(_REQUEST, _BRIEF, _CANDIDATES, run, _PALETTE)
+        if not result.get("valid"):
+            self.candidate_set_run = None
+            self.result = None
+            self.last_selection = None
+            failures = []
+            for entry in result.get("candidate_index", []):
+                if entry.get("status") != "valid":
+                    issues = entry.get("issues") or [{"message": "candidate replay failed"}]
+                    detail = "; ".join(f"{issue.get('code', 'ERROR')}: {issue.get('message', 'unknown failure')}" for issue in issues)
+                    failures.append(f"{entry.get('id', '<unknown>')} ({detail})")
+            if not failures and result.get("issues"):
+                failures.append("candidate set (" + "; ".join(
+                    f"{issue.get('code', 'ERROR')}: {issue.get('message', 'unknown failure')}"
+                    for issue in result["issues"]
+                ) + ")")
+            summary = "; ".join(failures) or str(result.get("outcome", "failed"))
+            if "SCHEMA_DEPENDENCY" in summary:
+                summary += " Install this project into the same Python interpreter used to launch the demo (see docs/demo-setup.md)."
+            raise ValueError(f"candidate replay failed: {summary}")
         self.candidate_set_run = run
         self.result = result
         self.last_selection = None
@@ -133,6 +152,10 @@ class FixtureDemoApp:
             self.select_buttons[candidate_id] = button
 
     def _create(self) -> None:
+        for canvas in self.canvases.values():
+            canvas.delete("all")
+        for button in self.select_buttons.values():
+            button.configure(state="disabled")
         try:
             self.controller.create_tower_choices()
             for candidate_id, canvas in self.canvases.items():

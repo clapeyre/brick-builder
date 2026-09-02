@@ -21,6 +21,7 @@ class ValidationError(ValueError):
 
 def repair_hint(code: str) -> str:
     return {
+        "SCHEMA_DEPENDENCY": "Install this project into the same Python interpreter used to launch the command (python -m pip install -e .).",
         "SCHEMA_INVALID": "Correct the document shape or required fields.",
         "PART_NOT_IN_PALETTE": "Choose a part listed by catalog.",
         "COLOUR_NOT_IN_PALETTE": "Choose an allowed palette colour.",
