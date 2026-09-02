@@ -1,6 +1,6 @@
 # Brick Builder project roadmap and handoff
 
-Status: active planning record, last updated 2026-09-01.
+Status: active planning record, last updated 2026-09-02.
 
 This document is the durable handoff between development tasks. It records the
 current state, architectural direction, ordered milestones, and acceptance
@@ -33,10 +33,34 @@ If a completed milestone changes the plan, update this document in the same
 commit. Do not rely on a previous agent's conversational context to carry a
 decision forward.
 
+## MVP definition
+
+The first showcaseable MVP is a child-facing creative loop, not a general CAD
+tool and not a fixed-command toy. A child may make an ordinary-language
+request, choose among a few visibly distinct proposed concepts, focus a region
+or lock what they like, and make an ordinary-language local change request.
+The agent must show a bounded, reversible proposal with any spillover made
+visible. Accepted designs proceed through deterministic LEGO validation and can
+be inspected in Studio by an adult.
+
+The internal representation may be deliberately constrained and structured so
+it can be validated, but the child must not need a universal creature, vehicle,
+or building ontology or a prescribed revision vocabulary. Model-generated
+labels can be temporary, design-specific conveniences; spatial focus, locks,
+and explicit before/after evidence are the durable interaction contract.
+
+The MVP is successful when a supervised child can recognize their idea in at
+least one proposal, select and revise it through this loop, and an adult can
+inspect the resulting valid assembly. It is also a technical showcase of
+verifier-guided physical design: the model proposes, while deterministic code
+checks known engineering constraints and preserves the full evidence trail.
+
 ## Current verified state
 
-The repository currently contains the deterministic foundation and a bounded
-Hermes generation experiment.
+The repository contains the deterministic foundation, bounded agent harnesses,
+and offline candidate/selection demonstrations. It does not yet demonstrate
+that a model understands an arbitrary creative request or performs a real
+child-facing local redesign on a LEGO candidate.
 
 Completed capabilities include:
 
@@ -60,6 +84,11 @@ Completed capabilities include:
 - a bounded deterministic wall-box LEGOization baseline using the existing
   rectangular brick and plate profiles, with checked-in scaffold input,
   target-volume coverage reporting, and structural validation kept separate.
+- a restricted Pi adapter with real scripted `AgentSession` coverage for
+  validation, compilation, candidate replay, explicit selection, brief
+  submission, bounded repair/exhaustion, cancellation, and provider failure;
+- offline candidate-set and selection artifacts that preserve validation,
+  LDraw, render-evidence, manifest, and receipt provenance.
 
 The Hermes experiment proves that an agent can write a candidate, receive
 deterministic feedback, repair invalid geometry, and compile a valid result. It
@@ -1190,7 +1219,7 @@ just performed. Start a new task when changing milestones, when the required
 context is already in the repository, or when the conversation has accumulated
 substantial exploratory history unrelated to the next implementation slice.
 
-## Next recommended task
+## Recent completed work and next recommended task
 
 ### 3D third bounded slice: offline end-to-end demo replay
 
@@ -1301,3 +1330,44 @@ Observed results (2026-09-02):
   operation was introduced;
 - 10 compiled TypeScript tests, TypeScript type-check, and diff checks pass.
   Existing Python, replay, selector, Hermes, and core behavior were unchanged.
+
+### MVP slice 1: natural-language request to spatial concept session
+
+Status: planned (2026-09-02).
+
+Begin the actual creative loop without imposing a child-facing ontology or
+revision command grammar. An adult-configured provider may receive a
+natural-language request and either ask one concise clarification or propose a
+small, bounded set of inspectable generic-box spatial concepts. Each concept
+uses stable geometry references only; any labels are model-specific and
+non-canonical. The model output is schema-validated and retained as an
+auditable artifact before any LEGOization attempt.
+
+Acceptance gates:
+
+- ordinary natural-language request text is preserved verbatim and is not
+  mapped through a required list of child-facing intent labels or revision
+  commands;
+- a bounded agent session records either an actionable clarification or two or
+  three distinct generic-box concept proposals with stable geometry references,
+  bounded dimensions, and reproducible renders;
+- malformed, out-of-bounds, or unsupported spatial proposals produce
+  actionable feedback to the model and exhaust within a fixed attempt limit;
+- the existing spatial-focus contract can select a region of a proposed
+  concept, retain hard locks, and record an ordinary-language local-redesign
+  request with visible spillover and exact undo;
+- live provider use is explicit adult configuration. Scripted offline sessions
+  remain the required automated evidence; no credentials are committed, and Pi
+  retains only explicit domain tools with no shell or arbitrary filesystem
+  access.
+
+Explicit non-goals: a universal semantic ontology, a required command grammar,
+claims that every request is understood, unrestricted geometry, automatic
+whole-model rewrites after a concept is selected, child testing before the loop
+is coherent, Studio automation, purchasing, publishing, or physical-build
+claims.
+
+The follow-on MVP slice should connect accepted spatial concepts to progressively
+broader deterministic LEGOization, while retaining the same focus/lock/local
+redesign contract. This sequencing makes model understanding observable and
+correctable before expanding the physical LEGO shape vocabulary.
