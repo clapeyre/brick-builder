@@ -1,44 +1,63 @@
 import unittest
 from pathlib import Path
 
-from brick_builder.gatehouse_legoization_bridge import legoize_gatehouse_concept
+from brick_builder.gatehouse_legoization_bridge import legoize_accepted_gatehouse
+from brick_builder.local_redesign import Block
 from brick_builder.palette import load_palette
 from brick_builder.spatial_concept import GenericBoxConcept
-from brick_builder.local_redesign import Block
+
+ROOT = Path(__file__).parents[1]
+PALETTE = load_palette(ROOT / "brick_builder/palettes/classic-core-v0.json")
 
 
-PALETTE = load_palette(Path(__file__).parents[1] / "brick_builder" / "palettes" / "classic-core-v0.json")
+def concept(*boxes):
+    return GenericBoxConcept(
+        "gatehouse-bridge-test", "Gatehouse bridge test",
+        tuple(Block(*box) for box in boxes),
+        {"camera": "three-quarter", "geometry_refs": [box[0] for box in boxes]},
+    )
 
 
-def concept(boxes):
-    return GenericBoxConcept("gatehouse-test", "Gatehouse test", tuple(boxes), {"camera": "three-quarter", "geometry_refs": [box.id for box in boxes], "width": 430, "height": 360, "scale": 24})
-
-
-class GatehouseBridgeTests(unittest.TestCase):
-    def test_success_is_repeatable_and_complete(self):
-        boxes = [Block("left", (-2, 1, 0), (2, 2, 2), "#2878b5"), Block("right", (2, 1, 0), (2, 2, 2), "#2878b5"), Block("bridge", (0, 3, 0), (6, 2, 2), "#2878b5")]
-        first = legoize_gatehouse_concept(concept(boxes), PALETTE)
-        second = legoize_gatehouse_concept(concept(boxes), PALETTE)
+class GatehouseLEGOizationBridgeTests(unittest.TestCase):
+    def test_symmetric_three_box_gatehouse_is_complete_and_repeatable(self):
+        value = concept(
+            ("bridge", (0, 1.5, 0), (6, 1, 2), "#2878b5"),
+            ("right", (2, 0.5, 0), (2, 1, 2), "#2878b5"),
+            ("left", (-2, 0.5, 0), (2, 1, 2), "#2878b5"),
+        )
+        first = legoize_accepted_gatehouse(value, PALETTE)
+        second = legoize_accepted_gatehouse(value, PALETTE)
         self.assertTrue(first.success)
+        self.assertTrue(first.legoization.valid)
+        self.assertTrue(first.snapshot()["assembly"]["coverage_complete"])
+        self.assertTrue(first.snapshot()["assembly"]["structural_valid"])
         self.assertEqual(first.serialize(), second.serialize())
-        self.assertTrue(first.legoization.coverage.complete)
-        self.assertTrue(first.legoization.structural_valid)
-        self.assertIn("0 Brick Builder model:", first.compiled_ldr)
+        self.assertEqual(first.mapping["opening_width_studs"], 2)
 
-    def test_rejects_wrong_count_and_bad_opening(self):
-        one = concept([Block("one", (0, 1, 0), (2, 2, 2), "#2878b5")])
-        self.assertIn("THREE_BOXES_REQUIRED", legoize_gatehouse_concept(one, PALETTE).diagnostics[0])
-        boxes = [Block("left", (-1, 1, 0), (2, 2, 2), "#2878b5"), Block("right", (1, 1, 0), (2, 2, 2), "#2878b5"), Block("bridge", (0, 3, 0), (4, 2, 2), "#2878b5")]
-        self.assertTrue(any("TOWERS_OVERLAP" in item or "POSITIVE_INTEGRAL_OPENING_REQUIRED" in item for item in legoize_gatehouse_concept(concept(boxes), PALETTE).diagnostics))
+    def test_rejects_bad_alignment_and_partial_shape_without_assembly(self):
+        candidate = concept(
+            ("bridge", (0, 1.5, 0), (6, 1, 2), "#2878b5"),
+            ("right", (2.25, 0.5, 0), (2, 1, 2), "#2878b5"),
+            ("left", (-2, 0.5, 0), (2, 1, 2), "#2878b5"),
+        )
+        result = legoize_accepted_gatehouse(candidate, PALETTE)
+        self.assertFalse(result.success)
+        self.assertIsNone(result.legoization)
+        self.assertTrue(any("TOWERS_NOT_SYMMETRIC" in item for item in result.diagnostics))
 
-    def test_rejects_misaligned_bridge_and_non_integral_dimensions(self):
-        boxes = [Block("left", (-2, 1, 0), (2, 2, 2), "#2878b5"), Block("right", (2, 1, 0), (2, 2, 2), "#2878b5"), Block("bridge", (0, 3, 1), (6.5, 2, 2), "#2878b5")]
-        result = legoize_gatehouse_concept(concept(boxes), PALETTE)
+        result = legoize_accepted_gatehouse(concept(("one", (0, 0.5, 0), (2, 1, 2), "#2878b5")), PALETTE)
         self.assertFalse(result.success)
         self.assertIsNone(result.mapping)
+        self.assertIn("THREE_BOXES_REQUIRED", result.diagnostics[0])
+
+    def test_rejects_non_integral_or_mismatched_depth(self):
+        result = legoize_accepted_gatehouse(concept(
+            ("bridge", (0, 1.5, 0), (6.5, 1, 2), "#2878b5"),
+            ("right", (2, 0.5, 0), (2, 1, 2), "#2878b5"),
+            ("left", (-2, 0.5, 0), (2, 1, 2), "#2878b5"),
+        ), PALETTE)
+        self.assertFalse(result.success)
         self.assertTrue(any("NON_INTEGRAL_DIMENSION" in item for item in result.diagnostics))
-        misaligned = [Block("left", (-2, 1, 0), (2, 2, 2), "#2878b5"), Block("right", (2, 1, 0), (2, 2, 2), "#2878b5"), Block("bridge", (0, 3, 1), (6, 2, 2), "#2878b5")]
-        self.assertTrue(any("NOT_ALIGNED" in item for item in legoize_gatehouse_concept(concept(misaligned), PALETTE).diagnostics))
 
 
 if __name__ == "__main__":

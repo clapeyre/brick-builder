@@ -1,4 +1,4 @@
-"""Provider-neutral bridge from three generic boxes to a bounded gatehouse."""
+"""Provider-neutral bridge for a bounded three-box gatehouse composition."""
 
 from __future__ import annotations
 
@@ -7,14 +7,15 @@ from dataclasses import dataclass
 from os import PathLike
 from typing import Any, Mapping
 
-from .legoization import GatehouseScaffold, LEGOizationResult, legoize_gatehouse
+from .legoization import LEGOizationResult, GatehouseScaffold, legoize_gatehouse
 from .palette import load_palette
 from .spatial_concept import GenericBoxConcept
-
 
 FORMAT = "brick-builder.gatehouse-legoization-bridge/v1"
 DEFAULT_COLOUR = 4
 MAX_WIDTH_STUDS = 16
+MAX_TOWER_WIDTH_STUDS = 8
+MAX_OPENING_WIDTH_STUDS = 8
 MAX_DEPTH_STUDS = 2
 MAX_HEIGHT_BRICKS = 4
 EPSILON = 1e-9
@@ -80,98 +81,115 @@ def _compiled_ldr(model: Mapping[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def legoize_gatehouse_concept(
+def legoize_accepted_gatehouse(
     concept: GenericBoxConcept,
     palette: Mapping[str, Any] | str | PathLike[str],
     *,
     colour: int = DEFAULT_COLOUR,
 ) -> GatehouseLEGOizationBridgeResult:
-    """Map exactly two equal towers and one spanning bridge to gatehouse LEGO."""
+    """Infer and map exactly two towers plus one bridge to ``legoize_gatehouse``.
+
+    Spatial x/z units are studs and y units are bricks.  The bridge is inferred
+    as the widest box; the remaining two boxes must be equal symmetric towers.
+    No provider-supplied semantic role or repair is trusted.
+    """
     if not isinstance(concept, GenericBoxConcept):
         raise TypeError("concept must be a GenericBoxConcept")
     source = concept.to_dict()
     diagnostics: list[str] = []
     if len(concept.boxes) != 3:
-        diagnostics.append("THREE_BOXES_REQUIRED: provide exactly two towers and one bridge")
-        return GatehouseLEGOizationBridgeResult("rejected", source, None, tuple(diagnostics))
-
-    boxes = sorted(concept.boxes, key=lambda box: (box.center[1] - box.size[1] / 2, box.id))
-    low = boxes[:2]
-    bridge = boxes[2]
-    tower_a, tower_b = low
+        return GatehouseLEGOizationBridgeResult(
+            "rejected", source, None,
+            ("THREE_BOXES_REQUIRED: provide exactly two towers and one full-width bridge",),
+        )
 
     def integral_dimensions(box: Any, label: str) -> tuple[int, int, int] | None:
-        values = tuple(box.size)
+        values = box.size
         names = ("width_studs", "height_bricks", "depth_studs")
         invalid = False
         for name, value in zip(names, values):
             if abs(value - round(value)) > EPSILON:
                 diagnostics.append(f"NON_INTEGRAL_DIMENSION: {label}.{name}={value:g} must be an integer")
                 invalid = True
-        return None if invalid else tuple(int(round(value)) for value in values)
+        return None if invalid else tuple(int(round(value)) for value in values)  # type: ignore[return-value]
 
-    tower_a_dims = integral_dimensions(tower_a, "tower_a")
-    tower_b_dims = integral_dimensions(tower_b, "tower_b")
-    bridge_dims = integral_dimensions(bridge, "bridge")
-    if tower_a_dims is None or tower_b_dims is None or bridge_dims is None:
+    dimensions = {box.id: integral_dimensions(box, box.id) for box in concept.boxes}
+    if any(value is None for value in dimensions.values()):
         return GatehouseLEGOizationBridgeResult("rejected", source, None, tuple(diagnostics))
-    tower_width, tower_height, tower_depth = tower_a_dims
-    if tower_a_dims != tower_b_dims:
-        diagnostics.append("TOWERS_MUST_MATCH: both towers must have equal width, height, and depth")
-    bridge_width, bridge_height, bridge_depth = bridge_dims
 
-    for label, box in (("tower_a", tower_a), ("tower_b", tower_b), ("bridge", bridge)):
-        if abs(box.center[2]) > EPSILON:
-            diagnostics.append(f"NOT_ALIGNED: {label} center z must be zero")
+    ordered = sorted(concept.boxes, key=lambda box: (-dimensions[box.id][0], box.id))  # type: ignore[index]
+    bridge = ordered[0]
+    towers = ordered[1:]
+    bridge_width, bridge_height, bridge_depth = dimensions[bridge.id]  # type: ignore[misc]
+    tower_width, tower_height, tower_depth = dimensions[towers[0].id]  # type: ignore[misc]
+    other_width, other_height, other_depth = dimensions[towers[1].id]  # type: ignore[misc]
+
+    if bridge_width <= tower_width:
+        diagnostics.append("BRIDGE_NOT_WIDER: bridge must span beyond both tower widths")
+    if (tower_width, tower_height, tower_depth) != (other_width, other_height, other_depth):
+        diagnostics.append("TOWERS_NOT_EQUAL: both towers must have identical dimensions")
     if bridge_depth != tower_depth:
         diagnostics.append("DEPTH_MISMATCH: bridge and towers must have the same depth")
-    if tower_depth > MAX_DEPTH_STUDS:
-        diagnostics.append(f"OUT_OF_BOUNDS: depth_studs={tower_depth} must be between 1 and {MAX_DEPTH_STUDS}")
-
-    a_bottom = tower_a.center[1] - tower_a.size[1] / 2
-    b_bottom = tower_b.center[1] - tower_b.size[1] / 2
-    a_top = tower_a.center[1] + tower_a.size[1] / 2
-    b_top = tower_b.center[1] + tower_b.size[1] / 2
-    bridge_bottom = bridge.center[1] - bridge.size[1] / 2
-    if abs(a_bottom) > EPSILON or abs(b_bottom) > EPSILON:
-        diagnostics.append("NOT_GROUNDED: both towers must have bottoms at spatial y=0")
-    if abs(bridge_bottom - a_top) > EPSILON or abs(bridge_bottom - b_top) > EPSILON:
-        diagnostics.append("BRIDGE_NOT_DIRECTLY_ATOP: bridge bottom must equal both tower tops")
-
-    if abs(tower_a.center[0] + tower_b.center[0]) > EPSILON:
-        diagnostics.append("TOWERS_NOT_CENTERED: tower centers must be symmetric around x=0")
+    for label, box in (("bridge", bridge), ("left_tower", towers[0]), ("right_tower", towers[1])):
+        if abs(box.center[2]) > EPSILON:
+            diagnostics.append(f"NOT_CENTERED: {label} center z must be zero")
+    base = sorted(towers, key=lambda box: box.center[0])
+    left, right = base
+    if abs(left.center[0] + right.center[0]) > EPSILON:
+        diagnostics.append("TOWERS_NOT_SYMMETRIC: tower centers must mirror around x=0")
     if abs(bridge.center[0]) > EPSILON:
         diagnostics.append("NOT_CENTERED: bridge center x must be zero")
-    if abs(tower_a.center[0] - tower_b.center[0]) <= tower_width - EPSILON:
-        diagnostics.append("TOWERS_OVERLAP: towers must be separated by a positive opening")
-    opening = abs(tower_a.center[0] - tower_b.center[0]) - tower_width
-    if opening <= EPSILON or abs(opening - round(opening)) > EPSILON:
-        diagnostics.append("POSITIVE_INTEGRAL_OPENING_REQUIRED: opening must be a positive integer number of studs")
-    if bridge_width != 2 * tower_width + int(round(opening)):
-        diagnostics.append("BRIDGE_MUST_BE_FULL_WIDTH: bridge width must exactly span both towers and opening")
+    left_bottom = left.center[1] - left.size[1] / 2
+    right_bottom = right.center[1] - right.size[1] / 2
+    tower_top = left.center[1] + left.size[1] / 2
+    bridge_bottom = bridge.center[1] - bridge.size[1] / 2
+    if abs(left_bottom) > EPSILON or abs(right_bottom) > EPSILON:
+        diagnostics.append("NOT_GROUNDED: both tower bottoms must lie on spatial y=0")
+    if abs(bridge_bottom - tower_top) > EPSILON:
+        diagnostics.append("BRIDGE_HEIGHT_MISMATCH: bridge must sit directly atop the towers")
+    opening_width = bridge_width - 2 * tower_width
+    if opening_width <= 0:
+        diagnostics.append("OPENING_NOT_POSITIVE: gateway opening must be positive")
+    expected_left = -(opening_width + tower_width) / 2
+    if abs(left.center[0] - expected_left) > EPSILON:
+        diagnostics.append("TOWERS_MISALIGNED: tower positions must define a centered opening")
 
-    for label, value, upper in (
-        ("tower_width_studs", tower_width, MAX_WIDTH_STUDS),
-        ("bridge_width_studs", bridge_width, MAX_WIDTH_STUDS),
+    for name, value, limit in (
+        ("width_studs", bridge_width, MAX_WIDTH_STUDS),
+        ("tower_width_studs", tower_width, MAX_TOWER_WIDTH_STUDS),
+        ("opening_width_studs", opening_width, MAX_OPENING_WIDTH_STUDS),
+        ("depth_studs", bridge_depth, MAX_DEPTH_STUDS),
         ("tower_height_bricks", tower_height, MAX_HEIGHT_BRICKS),
         ("bridge_height_bricks", bridge_height, MAX_HEIGHT_BRICKS),
     ):
-        if not 1 <= value <= upper:
-            diagnostics.append(f"OUT_OF_BOUNDS: {label}={value} must be between 1 and {upper}")
+        if not 1 <= value <= limit:
+            diagnostics.append(f"OUT_OF_BOUNDS: {name}={value} must be between 1 and {limit}")
     if diagnostics:
         return GatehouseLEGOizationBridgeResult("rejected", source, None, tuple(diagnostics))
 
     palette_data = load_palette(palette) if isinstance(palette, (str, PathLike)) else dict(palette)
     if colour not in {item.get("ldraw_code") for item in palette_data.get("colours", [])}:
-        return GatehouseLEGOizationBridgeResult("rejected", source, None, (f"COLOUR_NOT_IN_PALETTE: LDraw colour {colour} is not available",))
+        return GatehouseLEGOizationBridgeResult(
+            "rejected", source, None,
+            (f"COLOUR_NOT_IN_PALETTE: LDraw colour {colour} is not available",),
+        )
     mapping = {
         "spatial_units": {"x": "stud", "y": "brick", "z": "stud"},
-        "tower_refs": [tower_a.id, tower_b.id],
-        "bridge_ref": bridge.id,
-        "dimensions": {"width_studs": bridge_width, "tower_width_studs": tower_width, "opening_width_studs": int(round(opening)), "tower_height_bricks": tower_height, "bridge_height_bricks": bridge_height, "depth_studs": tower_depth},
+        "roles": {
+            "left_tower": {"source_ref": left.id, "width_studs": tower_width, "height_bricks": tower_height, "depth_studs": tower_depth},
+            "right_tower": {"source_ref": right.id, "width_studs": tower_width, "height_bricks": tower_height, "depth_studs": tower_depth},
+            "bridge": {"source_ref": bridge.id, "width_studs": bridge_width, "height_bricks": bridge_height, "depth_studs": bridge_depth},
+        },
+        "opening_width_studs": opening_width,
         "origin": "centered at x=0,z=0 with grounded towers at y=0",
         "ldraw_colour": colour,
     }
-    lego = legoize_gatehouse(GatehouseScaffold(bridge_width, tower_width, int(round(opening)), tower_height, bridge_height, tower_depth, model_id=f"{concept.id}-legoized-gatehouse", name=f"{concept.label} LEGOized gatehouse"), palette_data, colour=colour)
+    lego = legoize_gatehouse(
+        GatehouseScaffold(bridge_width, tower_width, opening_width, tower_height, bridge_height, bridge_depth,
+                          model_id=f"{concept.id}-legoized-gatehouse", name=f"{concept.label} LEGOized gatehouse"),
+        palette_data, colour=colour,
+    )
     diagnostics.extend(lego.coverage.diagnostics)
-    return GatehouseLEGOizationBridgeResult("success" if lego.valid else "rejected", source, mapping, tuple(diagnostics), lego, _compiled_ldr(lego.model))
+    return GatehouseLEGOizationBridgeResult(
+        "success" if lego.valid else "rejected", source, mapping, tuple(diagnostics), lego, _compiled_ldr(lego.model)
+    )
