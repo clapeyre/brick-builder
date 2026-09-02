@@ -14,9 +14,9 @@ async function adapter() {
   return { root, api: new BrickBuilderAdapter({ runRoot: root, repositoryRoot: repo, python }) };
 }
 
-test("domain tools expose only the bounded Brick Builder operations", () => {
+test("domain tools expose only the explicit Brick Builder operations", () => {
   const { api } = { api: new BrickBuilderAdapter({ runRoot: "C:/runs/test" }) };
-  assert.deepEqual(createBrickBuilderTools(api).map((tool) => tool.name), ["brick_catalog", "brick_validate", "brick_analyze", "brick_compile", "brick_demo_generate", "brick_demo_candidate_set", "brick_select_candidate"]);
+  assert.deepEqual(createBrickBuilderTools(api).map((tool) => tool.name), ["brick_catalog", "brick_validate", "brick_analyze", "brick_compile", "brick_demo_generate", "brick_demo_candidate_set", "brick_select_candidate", "brick_submit_brief", "brick_request_candidates"]);
   assert.equal((createPiSessionOptions(api) as any).noTools, "builtin");
 });
 
@@ -32,6 +32,51 @@ test("offline candidate replay and explicit selection stay contained and produce
   assert.equal(receipt.selected_candidate_id, "gatehouse");
   await assert.rejects(() => api.selectCandidate("missing" as any), /unknown offline candidate id/);
   await assert.rejects(() => api.demoCandidateSet("other" as any), /unknown offline candidate fixture/);
+});
+
+test("brief submission validates the bounded building contract and candidate replay is traceable", async () => {
+  const { root, api } = await adapter();
+  const brief = JSON.parse(await readFile(join(repo, "examples/demo/tiny-red-tower.brief.json"), "utf8"));
+  const accepted = await api.submitBrief(brief);
+  assert.equal(accepted.valid, true);
+  const result = await api.requestCandidates("small-building-tower");
+  assert.equal(result.valid, true);
+  assert.deepEqual((result.candidate_index as Array<{ id: string }>).map((entry) => entry.id), ["compact-box", "stepped-box", "gatehouse"]);
+  assert.ok(await stat(join(root, "brief.json")));
+  assert.ok(await stat(join(root, "candidate-set", "candidate-index.json")));
+  assert.ok(await stat(join(root, "candidate-set", "candidates", "gatehouse", "render-evidence.json")));
+  assert.ok((result.manifest as { files: Record<string, string> }).files["candidate-index.json"]);
+});
+
+test("malformed and unsupported briefs are actionable and do not create candidate success", async () => {
+  const { root, api } = await adapter();
+  const malformed = await api.submitBrief({ format: "wrong", intent: "", constraints: { depth_studs: 3 } });
+  assert.equal(malformed.valid, false);
+  assert.match(JSON.stringify(malformed.issues), /BRIEF_FORMAT_UNSUPPORTED/);
+  assert.equal((await api.requestCandidates("unknown-family")).valid, false);
+  await assert.rejects(() => stat(join(root, "candidate-set")));
+});
+
+test("brief-to-candidate session repairs once, then exhausts without false success", async () => {
+  const repaired = await adapter();
+  const brief = JSON.parse(await readFile(join(repo, "examples/demo/tiny-red-tower.brief.json"), "utf8"));
+  const repairedOutcome = await runScriptedPiSession(repaired.api, "submit a brief and request candidates", [
+    { kind: "tool", name: "brick_submit_brief", arguments: { format: "wrong", intent: "", constraints: {} } },
+    { kind: "tool", name: "brick_submit_brief", arguments: brief },
+    { kind: "tool", name: "brick_request_candidates", arguments: { family: "small-building-tower" } },
+    { kind: "text", text: "Candidate set ready." },
+  ]);
+  assert.equal(repairedOutcome.status, "completed");
+  assert.deepEqual(repairedOutcome.toolCalls, ["brick_submit_brief", "brick_submit_brief", "brick_request_candidates"]);
+  assert.ok(await stat(join(repaired.root, "candidate-set", "candidate-index.json")));
+  const exhausted = await adapter();
+  const exhaustedOutcome = await runScriptedPiSession(exhausted.api, "repair brief", [
+    { kind: "tool", name: "brick_submit_brief", arguments: { format: "wrong", intent: "", constraints: {} } },
+    { kind: "tool", name: "brick_submit_brief", arguments: { format: "wrong", intent: "", constraints: {} } },
+    { kind: "text", text: "Unable to repair." },
+  ]);
+  assert.equal(exhaustedOutcome.status, "completed");
+  await assert.rejects(() => stat(join(exhausted.root, "candidate-set")));
 });
 
 test("catalog, validation, analysis and deterministic compilation stay offline", async () => {

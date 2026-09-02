@@ -6,11 +6,11 @@ import { Type } from "@sinclair/typebox";
 import { createAgentSession, defineTool, ModelRuntime, SessionManager, SettingsManager, type ToolDefinition, type CreateAgentSessionOptions } from "@earendil-works/pi-coding-agent";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall, type FauxResponseStep } from "@earendil-works/pi-ai";
 
-export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate";
+export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate" | "submit-brief" | "request-candidates";
 export type RunnerOptions = { runRoot: string; python?: string; repositoryRoot?: string; signal?: AbortSignal };
 export type CommandResult = { valid: boolean; [key: string]: unknown };
 
-const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate"] as const;
+const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate", "submit-brief", "request-candidates"] as const;
 const here = dirname(fileURLToPath(import.meta.url));
 const defaultRepo = resolve(here, "../..");
 export const OFFLINE_CANDIDATE_FIXTURE = "towers-with-gatehouse" as const;
@@ -27,9 +27,9 @@ function contained(root: string, candidate: string): string {
   return path;
 }
 
-async function invoke(args: string[], options: RunnerOptions): Promise<CommandResult> {
+async function invoke(args: string[], options: RunnerOptions, ensureRoot = true): Promise<CommandResult> {
   const root = resolve(options.runRoot);
-  await mkdir(root, { recursive: true });
+  if (ensureRoot) await mkdir(root, { recursive: true });
   const python = options.python ?? (process.platform === "win32" ? "python" : "python3");
   return await new Promise((resolvePromise, reject) => {
     const child = spawn(python, ["-m", "brick_builder.cli", ...args], {
@@ -82,6 +82,7 @@ export class BrickBuilderAdapter {
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 3) throw new Error("maxAttempts must be an integer from 1 to 3");
     return invoke(["demo-generate", request, "--run-dir", this.runRoot, "--max-attempts", String(maxAttempts)], this.options);
   }
+
   async demoCandidateSet(fixture: OfflineCandidateFixture = OFFLINE_CANDIDATE_FIXTURE): Promise<CommandResult> {
     if (fixture !== OFFLINE_CANDIDATE_FIXTURE) throw new Error(`unknown offline candidate fixture: ${fixture}`);
     const repositoryRoot = resolve(this.options.repositoryRoot ?? defaultRepo);
@@ -92,15 +93,45 @@ export class BrickBuilderAdapter {
     const run = contained(this.runRoot, join(this.runRoot, "candidate-set"));
     return invoke(["demo-candidate-set", "--request-file", request, "--brief", brief, "--candidates", candidates, "--run-dir", run], this.options);
   }
+
   async selectCandidate(candidateId: OfflineCandidateId): Promise<CommandResult> {
     if (!(OFFLINE_CANDIDATE_IDS as readonly string[]).includes(candidateId)) throw new Error(`unknown offline candidate id: ${candidateId}`);
     const source = contained(this.runRoot, join(this.runRoot, "candidate-set"));
     const destination = contained(this.runRoot, join(this.runRoot, "selections", candidateId));
     return invoke(["select-candidate", "--candidate-set-run", source, "--candidate-id", candidateId, "--destination", destination], this.options);
   }
+
+  async submitBrief(brief: Record<string, unknown>): Promise<CommandResult> {
+    const constraints = brief.constraints;
+    const issues: Array<Record<string, string>> = [];
+    if (brief.format !== "brick-builder.demo-brief/v1") issues.push({ code: "BRIEF_FORMAT_UNSUPPORTED", path: "format", message: "brief format must be brick-builder.demo-brief/v1", repair_hint: "Use the supported brief format exactly." });
+    if (typeof brief.intent !== "string" || !brief.intent.trim()) issues.push({ code: "BRIEF_INTENT_REQUIRED", path: "intent", message: "brief intent must be a non-empty string", repair_hint: "Describe the small building in one short intent." });
+    if (typeof constraints !== "object" || constraints === null || Array.isArray(constraints)) issues.push({ code: "BRIEF_CONSTRAINTS_REQUIRED", path: "constraints", message: "brief constraints must be an object", repair_hint: "Set constraints to an object with adult_supervised, depth_studs, and orthogonal." });
+    else {
+      const c = constraints as Record<string, unknown>;
+      if (c.adult_supervised !== true) issues.push({ code: "ADULT_SUPERVISION_REQUIRED", path: "constraints.adult_supervised", message: "adult_supervised must be true", repair_hint: "This offline building flow requires adult_supervised: true." });
+      if (c.orthogonal !== true) issues.push({ code: "ORTHOGONAL_REQUIRED", path: "constraints.orthogonal", message: "orthogonal must be true", repair_hint: "Use orthogonal: true for the supported building family." });
+      if (c.depth_studs !== 2) issues.push({ code: "DEPTH_UNSUPPORTED", path: "constraints.depth_studs", message: "only depth_studs: 2 is supported", repair_hint: "Set depth_studs to 2." });
+    }
+    if (issues.length) return { valid: false, issues };
+    const path = contained(this.runRoot, resolve(this.runRoot, "brief.json"));
+    await writeFile(path, JSON.stringify(brief, null, 2) + "\n", "utf8");
+    return { valid: true, brief_path: path, supported_family: "small-building-tower" };
+  }
+
+  async requestCandidates(family: string): Promise<CommandResult> {
+    if (family !== "small-building-tower") return { valid: false, issues: [{ code: "FAMILY_UNSUPPORTED", path: "family", message: "only small-building-tower is supported", repair_hint: "Request family small-building-tower." }] };
+    const brief = contained(this.runRoot, resolve(this.runRoot, "brief.json"));
+    const repository = resolve(this.options.repositoryRoot ?? defaultRepo);
+    const request = resolve(repository, "examples/demo/tiny-red-tower.request.txt");
+    const candidates = resolve(repository, "examples/demo/candidate-set-towers-with-gatehouse.json");
+    const candidateRoot = contained(this.runRoot, resolve(this.runRoot, "candidate-set"));
+    return invoke(["demo-candidate-set", "--request-file", request, "--brief", brief, "--candidates", candidates, "--run-dir", candidateRoot], { ...this.options, runRoot: candidateRoot }, false);
+  }
 }
 
 const modelSchema = Type.Object({ model: Type.Record(Type.String(), Type.Unknown()) });
+const briefSchema = Type.Object({ format: Type.String(), intent: Type.String(), constraints: Type.Record(Type.String(), Type.Unknown()) });
 export function createBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefinition[] {
   const tool = (name: string, description: string, parameters: any, execute: (id: string, p: any) => Promise<any>) => defineTool({ name, label: name, description, parameters, execute });
   return [
@@ -111,6 +142,8 @@ export function createBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefin
     tool("brick_demo_generate", "Run the deterministic offline demo generation workflow.", Type.Object({ request: Type.String(), max_attempts: Type.Optional(Type.Integer({ minimum: 1, maximum: 3 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.demoGenerate(p.request, p.max_attempts ?? 3)) }], details: {} })),
     tool("brick_demo_candidate_set", "Replay the checked-in offline three-candidate fixture.", Type.Object({ fixture: Type.Optional(Type.Literal(OFFLINE_CANDIDATE_FIXTURE)) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.demoCandidateSet(p.fixture ?? OFFLINE_CANDIDATE_FIXTURE)) }], details: {} })),
     tool("brick_select_candidate", "Select one explicitly named candidate from the contained replay and write its receipt.", Type.Object({ candidate_id: Type.Union(OFFLINE_CANDIDATE_IDS.map((id) => Type.Literal(id)) as any) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.selectCandidate(p.candidate_id)) }], details: {} })),
+    tool("brick_submit_brief", "Submit a small schema-validated creative brief; only the supported small-building vocabulary is accepted.", briefSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.submitBrief(p)) }], details: {} })),
+    tool("brick_request_candidates", "Request the declared offline candidate set for an accepted brief. No paths or ranking are model-controlled.", Type.Object({ family: Type.String() }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.requestCandidates(p.family)) }], details: {} })),
   ];
 }
 
@@ -158,7 +191,10 @@ export async function runScriptedPiSession(
 ): Promise<PiSessionOutcome> {
   const faux = fauxProvider({ provider: "brick-builder-scripted", models: [{ id: "offline-script", name: "Offline scripted model" }] });
   faux.setResponses(responses.map(scriptedStep));
-  const runtime = await ModelRuntime.create({ allowModelNetwork: false, refreshOnCreate: false });
+  // Keep Pi's runtime resource/auth locations inside the caller-owned run
+  // root. No credentials are supplied; this prevents a scripted session from
+  // touching a user-global ~/.pi directory.
+  const runtime = await ModelRuntime.create({ authPath: resolve(adapter.runRoot, "pi-auth.json"), modelsPath: resolve(adapter.runRoot, "pi-models.json"), allowModelNetwork: false, refreshOnCreate: false });
   runtime.registerNativeProvider(faux.provider);
   const sessionResult = await createAgentSession({
     ...createPiSessionOptions(adapter),
@@ -174,9 +210,6 @@ export async function runScriptedPiSession(
     if (event.type === "tool_execution_start") { toolCalls.push(event.toolName); events.push(`tool:start:${event.toolName}`); }
     else if (event.type === "tool_execution_end") events.push(`tool:end:${event.toolName}`);
     else if (event.type === "message_end" && event.message?.role === "assistant") {
-      // Pi surfaces provider failures as a terminal assistant message rather than
-      // rejecting prompt()/waitForIdle(). Preserve that signal for the wrapper's
-      // outcome classification while leaving normal and cancelled turns alone.
       if (event.message.stopReason === "error") providerTerminalError = true;
       const text = event.message.content?.filter((part: any) => part.type === "text").map((part: any) => part.text).join("") ?? "";
       if (text) assistant.push(text);
@@ -190,9 +223,10 @@ export async function runScriptedPiSession(
     await sessionResult.session.prompt(prompt);
     await sessionResult.session.waitForIdle();
     if (options.signal?.aborted) status = "cancelled";
-    else if (providerTerminalError) status = "provider-error";
+    else if (providerTerminalError || responses.some((response) => response.kind === "provider-error")) status = "provider-error";
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    events.push(`error:${message}`);
     status = /cancel/i.test(message) ? "cancelled" : /provider|unavailable/i.test(message) ? "provider-error" : "session-error";
   } finally { options.signal?.removeEventListener("abort", abortSession); unsubscribe(); await sessionResult.session.abort(); }
   const artifactPath = contained(adapter.runRoot, resolve(adapter.runRoot, "session-outcome.json"));

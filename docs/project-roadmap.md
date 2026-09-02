@@ -1253,3 +1253,51 @@ UI only after this vertical path produces a result worth testing with a child.
 The deferred Milestone 4 trial should then evaluate child comprehension of
 candidate choice, focus, locks, spillover, accept, and undo using the
 end-to-end demo rather than the early renderer prototype in isolation.
+
+### 3D fourth bounded slice: offline brief-to-candidate agent contract
+
+Status: verified (2026-09-02).
+
+Move one step beyond replay-only fixtures without introducing a live provider:
+through a real, scripted Pi `AgentSession`, allow the model to submit a small,
+validated creative brief and request a declared candidate set from a bounded
+vocabulary of already supported scaffold families.  The result must retain the
+existing candidate replay, validation, compilation, render-evidence, manifest,
+and selection contracts.  This slice establishes the agent-facing creative
+handoff and repair boundary; it does not claim open-ended natural-language
+design ability.
+
+Acceptance gates:
+
+- a scripted Pi session can submit a schema-validated brief for one supported
+  small-building request and create the existing declared candidate set inside
+  its confined run root;
+- malformed or unsupported briefs yield actionable tool results and a bounded
+  repair/exhaustion outcome, with no candidate artifacts presented as success;
+- the session remains restricted to explicit Brick Builder domain tools, with
+  no Pi built-ins, shell, arbitrary filesystem access, credentials, network,
+  ranking, or automatic selection;
+- accepted output is traceable from brief through candidate-set index to its
+  existing validation, LDraw, render-evidence, and manifest artifacts;
+- the deterministic Python core, existing replay fixtures, selector, Hermes
+  integration, and current Pi session tests retain their behavior.
+
+Explicit non-goals: a live provider call, unrestricted free-text
+interpretation, automatic shape invention, arbitrary scaffold geometry,
+semantic resemblance scoring, visual critique, Pi-driven editing, Studio
+automation, child testing, purchasing, publishing, and external export.
+
+Observed results (2026-09-02):
+
+- the Pi adapter accepts only a schema-validated `brick-builder.demo-brief/v1`
+  brief for `small-building-tower`, persists it under the caller run root, and
+  maps requests to the checked-in three-choice tower fixture without accepting
+  model-controlled paths, ranking, or selection;
+- real scripted Pi `AgentSession` tests cover malformed repair, bounded
+  exhaustion without candidate artifacts, and successful traceability through
+  candidate index, validation, LDraw, render-evidence, and manifest artifacts;
+- the explicit domain-only tool surface and `noTools: "builtin"` remain in
+  force; no live provider, credentials, network, shell, or arbitrary filesystem
+  operation was introduced;
+- 10 compiled TypeScript tests, TypeScript type-check, and diff checks pass.
+  Existing Python, replay, selector, Hermes, and core behavior were unchanged.
