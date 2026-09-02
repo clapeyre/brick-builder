@@ -16,6 +16,7 @@ from .palette import load_palette
 from .legoization_bridge import legoize_accepted_box
 from .spatial_concept import SpatialConceptSession, write_session_artifacts
 from .stepped_legoization_bridge import legoize_accepted_stepped_boxes
+from .gatehouse_legoization_bridge import legoize_accepted_gatehouse
 from .validation import ValidationError, repair_hint, validate_model
 
 
@@ -269,6 +270,20 @@ def legoize_stepped_concept_command(args):
     return {"valid": result.success, **output, "run_dir": str(args.run_dir)}
 
 
+def legoize_gatehouse_concept_command(args):
+    concept = _concept_from_dict(json.loads(args.concept.read_text(encoding="utf-8")))
+    result = legoize_accepted_gatehouse(concept, load_palette(args.palette), colour=args.colour)
+    output = result.snapshot()
+    args.run_dir.mkdir(parents=True, exist_ok=True)
+    (args.run_dir / "gatehouse-legoization-bridge.json").write_text(
+        json.dumps(output, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        encoding="utf-8", newline="\n",
+    )
+    if result.success and result.compiled_ldr is not None:
+        (args.run_dir / "final.ldr").write_text(result.compiled_ldr, encoding="utf-8", newline="\n")
+    return {"valid": result.success, **output, "run_dir": str(args.run_dir)}
+
+
 def main(argv=None):
     if argv is None:
         import sys
@@ -276,7 +291,7 @@ def main(argv=None):
         argv = sys.argv[1:]
     if (
         len(argv) >= 2
-        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "demo-replay", "demo-candidate-set", "select-candidate", "spatial-concepts", "concept-redesign", "legoize-concept", "legoize-stepped-concept", "manifest", "-h", "--help"}
+        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "demo-replay", "demo-candidate-set", "select-candidate", "spatial-concepts", "concept-redesign", "legoize-concept", "legoize-stepped-concept", "legoize-gatehouse-concept", "manifest", "-h", "--help"}
         and not argv[0].startswith("-")
     ):
         argv = ["compile", *argv]
@@ -370,6 +385,13 @@ def main(argv=None):
     stepped_parser.add_argument("--palette", type=Path, default=DEFAULT_PALETTE)
     stepped_parser.add_argument("--colour", type=int, default=4)
     stepped_parser.set_defaults(handler=legoize_stepped_concept_command)
+
+    gatehouse_parser = subparsers.add_parser("legoize-gatehouse-concept")
+    gatehouse_parser.add_argument("--concept", type=Path, required=True)
+    gatehouse_parser.add_argument("--run-dir", type=Path, required=True)
+    gatehouse_parser.add_argument("--palette", type=Path, default=DEFAULT_PALETTE)
+    gatehouse_parser.add_argument("--colour", type=int, default=4)
+    gatehouse_parser.set_defaults(handler=legoize_gatehouse_concept_command)
 
     args = parser.parse_args(argv)
     try:

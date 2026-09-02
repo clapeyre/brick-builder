@@ -6,11 +6,11 @@ import { Type } from "@sinclair/typebox";
 import { createAgentSession, defineTool, ModelRuntime, SessionManager, SettingsManager, type ToolDefinition, type CreateAgentSessionOptions } from "@earendil-works/pi-coding-agent";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall, type FauxResponseStep } from "@earendil-works/pi-ai";
 
-export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate" | "submit-brief" | "request-candidates" | "spatial-concepts" | "concept-redesign" | "legoize-concept" | "legoize-stepped-concept";
+export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate" | "submit-brief" | "request-candidates" | "spatial-concepts" | "concept-redesign" | "legoize-concept" | "legoize-stepped-concept" | "legoize-gatehouse-concept";
 export type RunnerOptions = { runRoot: string; python?: string; repositoryRoot?: string; signal?: AbortSignal };
 export type CommandResult = { valid: boolean; [key: string]: unknown };
 
-const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate", "submit-brief", "request-candidates", "spatial-concepts", "concept-redesign", "legoize-concept", "legoize-stepped-concept"] as const;
+const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate", "submit-brief", "request-candidates", "spatial-concepts", "concept-redesign", "legoize-concept", "legoize-stepped-concept", "legoize-gatehouse-concept"] as const;
 const here = dirname(fileURLToPath(import.meta.url));
 const defaultRepo = resolve(here, "../..");
 export const OFFLINE_CANDIDATE_FIXTURE = "towers-with-gatehouse" as const;
@@ -164,6 +164,12 @@ export class BrickBuilderAdapter {
     await writeFile(conceptPath, JSON.stringify(concept, null, 2) + "\n", "utf8");
     return invoke(["legoize-stepped-concept", "--concept", conceptPath, "--run-dir", this.runRoot, "--colour", String(colour)], this.options);
   }
+
+  async legoizeGatehouseConcept(concept: Record<string, unknown>, colour = 4): Promise<CommandResult> {
+    const conceptPath = contained(this.runRoot, resolve(this.runRoot, "accepted-gatehouse-concept.json"));
+    await writeFile(conceptPath, JSON.stringify(concept, null, 2) + "\n", "utf8");
+    return invoke(["legoize-gatehouse-concept", "--concept", conceptPath, "--run-dir", this.runRoot, "--colour", String(colour)], this.options);
+  }
 }
 
 const modelSchema = Type.Object({ model: Type.Record(Type.String(), Type.Unknown()) });
@@ -194,6 +200,7 @@ export function createBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefin
     tool("brick_concept_redesign", "Focus, lock, propose, retry, accept, or undo a local redesign of one accepted generic-box concept. State stays inside this run root.", conceptRedesignSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.conceptRedesign(p.operation, { concept: p.concept, requestText: p.request, point: p.point, radius: p.radius, blockId: p.block_id, instruction: p.instruction })) }], details: {} })),
     tool("brick_legoize_concept", "LEGOize one accepted aligned generic-box concept through the deterministic one-box bridge. Coverage and structural validity remain separate evidence.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeConcept(p.concept, p.colour ?? 4)) }], details: {} })),
     tool("brick_legoize_stepped_concept", "LEGOize one accepted centered two-tier generic-box concept through the deterministic stepped bridge. Coverage and structural validity remain separate evidence.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeSteppedConcept(p.concept, p.colour ?? 4)) }], details: {} })),
+    tool("brick_legoize_gatehouse_concept", "LEGOize one accepted bounded two-tower gatehouse concept through the deterministic gatehouse bridge. Coverage and structural validity remain separate evidence.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeGatehouseConcept(p.concept, p.colour ?? 4)) }], details: {} })),
   ];
 }
 

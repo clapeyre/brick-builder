@@ -1510,3 +1510,47 @@ Observed results (2026-09-02):
   through Pi's explicit domain-only tool surface;
 - 97 Python tests and 17 Pi adapter tests pass, with TypeScript type-checking,
   byte-compilation, and diff checks passing.
+
+### MVP slice 1 LEGOization bridge: bounded gatehouse composition
+
+Status: verified (2026-09-02).
+
+Extend the accepted-concept bridge to exactly three generic boxes matching the
+existing gatehouse LEGOization contract: two equal grounded towers and one
+full-width bridge directly attached at their top, leaving a positive opening.
+The bridge retains source geometry, explicit unit mapping, separate coverage
+and structural validity, and contained deterministic LDraw output.
+
+Acceptance gates:
+
+- valid three-box concepts map deterministically to `legoize_gatehouse` without
+  semantic labels or silent geometry repair;
+- tower widths/heights/depths match, the bridge spans the complete width, the
+  opening is positive, all boxes are centered/aligned/grounded as required,
+  and dimensions remain within the existing small bounds;
+- overlapping, gapped, miscentered, non-integral, wrong-cardinality, and
+  out-of-bounds concepts return actionable diagnostics without successful
+  partial output;
+- a bounded offline adapter/session test can request the gatehouse bridge
+  through an explicit Pi domain operation while retaining `noTools: "builtin"`;
+- existing spatial concept, local redesign, one-box, stepped-box, renderer,
+  Python, Hermes, and Pi behavior remains passing.
+
+Explicit non-goals: arbitrary multi-box unions, semantic resemblance, shape
+invention, automatic repair, Studio automation, UI changes, live providers,
+child testing, purchasing, publishing, or export.
+
+Observed results (2026-09-02):
+
+- `legoize_accepted_gatehouse` maps exactly two equal grounded towers plus a
+  centered full-width bridge with a positive opening to the existing
+  `legoize_gatehouse` path, retaining source refs, unit mapping, coverage,
+  structural validity, and deterministic LDraw output;
+- overlapping, gapped, miscentered, non-integral, wrong-cardinality,
+  depth-mismatched, and out-of-bounds concepts return actionable diagnostics
+  without successful partial output;
+- `legoize-gatehouse-concept` writes contained bridge evidence and `final.ldr`
+  only on success, while `brick_legoize_gatehouse_concept` exposes the bounded
+  operation through Pi's explicit domain-only tool surface;
+- 100 Python tests and 18 Pi adapter tests pass, with TypeScript type-checking,
+  byte-compilation, and diff checks passing.
