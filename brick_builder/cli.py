@@ -15,6 +15,7 @@ from .ldraw import discover_ldraw_library
 from .palette import load_palette
 from .legoization_bridge import legoize_accepted_box
 from .spatial_concept import SpatialConceptSession, write_session_artifacts
+from .stepped_legoization_bridge import legoize_accepted_stepped_boxes
 from .validation import ValidationError, repair_hint, validate_model
 
 
@@ -253,6 +254,21 @@ def legoize_concept_command(args):
     return {"valid": result.success, **output, "run_dir": str(args.run_dir)}
 
 
+def legoize_stepped_concept_command(args):
+    concept = _concept_from_dict(json.loads(args.concept.read_text(encoding="utf-8")))
+    palette = load_palette(args.palette)
+    result = legoize_accepted_stepped_boxes(concept, palette, colour=args.colour)
+    output = result.snapshot()
+    args.run_dir.mkdir(parents=True, exist_ok=True)
+    (args.run_dir / "stepped-legoization-bridge.json").write_text(
+        json.dumps(output, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        encoding="utf-8", newline="\n",
+    )
+    if result.success and result.compiled_ldr is not None:
+        (args.run_dir / "final.ldr").write_text(result.compiled_ldr, encoding="utf-8", newline="\n")
+    return {"valid": result.success, **output, "run_dir": str(args.run_dir)}
+
+
 def main(argv=None):
     if argv is None:
         import sys
@@ -260,7 +276,7 @@ def main(argv=None):
         argv = sys.argv[1:]
     if (
         len(argv) >= 2
-        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "demo-replay", "demo-candidate-set", "select-candidate", "spatial-concepts", "concept-redesign", "legoize-concept", "manifest", "-h", "--help"}
+        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "demo-replay", "demo-candidate-set", "select-candidate", "spatial-concepts", "concept-redesign", "legoize-concept", "legoize-stepped-concept", "manifest", "-h", "--help"}
         and not argv[0].startswith("-")
     ):
         argv = ["compile", *argv]
@@ -347,6 +363,13 @@ def main(argv=None):
     legoize_parser.add_argument("--palette", type=Path, default=DEFAULT_PALETTE)
     legoize_parser.add_argument("--colour", type=int, default=4)
     legoize_parser.set_defaults(handler=legoize_concept_command)
+
+    stepped_parser = subparsers.add_parser("legoize-stepped-concept")
+    stepped_parser.add_argument("--concept", type=Path, required=True)
+    stepped_parser.add_argument("--run-dir", type=Path, required=True)
+    stepped_parser.add_argument("--palette", type=Path, default=DEFAULT_PALETTE)
+    stepped_parser.add_argument("--colour", type=int, default=4)
+    stepped_parser.set_defaults(handler=legoize_stepped_concept_command)
 
     args = parser.parse_args(argv)
     try:

@@ -1469,3 +1469,44 @@ Observed results (2026-09-02):
   through Pi's explicit domain-only tool surface;
 - 94 Python tests and 16 Pi adapter tests pass, with TypeScript type-checking,
   byte-compilation, and diff checks passing.
+
+### MVP slice 1 LEGOization bridge: two aligned stepped boxes
+
+Status: verified (2026-09-02).
+
+Extend the accepted-concept bridge to exactly two generic boxes that match the
+existing stepped-box LEGOization contract: a grounded base and a directly
+attached, centered, narrower upper tier. Preserve explicit spatial units,
+source geometry references, separate coverage and structural validity, and
+contained deterministic LDraw output.
+
+Acceptance gates:
+
+- valid two-tier concepts map deterministically to `legoize_stepped_box` with
+  no model-controlled paths or silent geometry repair;
+- overlapping, gapped, miscentered, depth-mismatched, non-integral,
+  out-of-bounds, or wrong-cardinality concepts return actionable diagnostics
+  without successful partial output;
+- a bounded offline adapter/session test can request the stepped bridge through
+  an explicit Pi domain operation while retaining `noTools: "builtin"`;
+- existing spatial concept, local redesign, one-box LEGOization, renderer,
+  Python, Hermes, and Pi behavior remains passing.
+
+Explicit non-goals: arbitrary multi-box unions, gatehouses, semantic
+resemblance, shape invention, automatic repair, Studio automation, UI changes,
+live providers, child testing, purchasing, publishing, or export.
+
+Observed results (2026-09-02):
+
+- `legoize_accepted_stepped_boxes` maps exactly two grounded, centered generic
+  boxes with a directly attached narrower upper tier to the existing stepped
+  LEGOization path, retaining source refs, explicit unit mapping, coverage,
+  structural validity, and deterministic LDraw output;
+- overlapping, gapped, miscentered, depth-mismatched, non-integral,
+  out-of-bounds, and wrong-cardinality concepts return actionable diagnostics
+  without successful partial output;
+- `legoize-stepped-concept` writes contained bridge evidence and `final.ldr`
+  only on success, while `brick_legoize_stepped_concept` exposes the operation
+  through Pi's explicit domain-only tool surface;
+- 97 Python tests and 17 Pi adapter tests pass, with TypeScript type-checking,
+  byte-compilation, and diff checks passing.
