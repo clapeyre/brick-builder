@@ -64,6 +64,19 @@
   operations. Subagents may inspect Git state and prepare a bounded handoff,
   but must not push, change remotes, alter SSH or credential settings, or switch
   transport as a workaround.
+- In Codex tasks using **Ask for approval** or **Approve for me**, commands run
+  sandboxed by default. Before an operation needing network or access beyond
+  the workspace—such as dependency installation or repair, a Pi runner that
+  needs pnpm's package store, or `git push`—the root integrator must request
+  elevated access. It must not first run the same command in the sandbox,
+  retry a blocked command, or treat the resulting access error as a project
+  failure.
+- **Approve for me** changes who reviews an elevation request; it does not give
+  ordinary commands unrestricted network or filesystem access. The agent must
+  still request elevation and wait for the result. Only the owner chooses
+  **Full access** in the Codex UI. Do not ask the owner to reproduce routine
+  project commands manually in PowerShell merely because an elevation request
+  is needed or rejected; report the request and outcome instead.
 - If a subagent cannot push because its execution environment blocks GitHub or
   SSH access, it must not retry or diagnose credentials. It should report the
   prepared files, verification performed, and (if one exists) the commit hash
