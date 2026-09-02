@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from brick_builder.demo_replay import replay_demo
+from brick_builder.demo_replay import replay_candidate_set, replay_demo
 
 ROOT = Path(__file__).parents[1]
 PALETTE = ROOT / "brick_builder/palettes/classic-core-v0.json"
@@ -11,6 +11,49 @@ DEMO = ROOT / "examples/demo"
 
 
 class DemoReplayTests(unittest.TestCase):
+    def test_candidate_set_replays_two_ordered_candidates_without_selection(self):
+        fixture = DEMO / "candidate-set-boxes.json"
+        with tempfile.TemporaryDirectory() as directory:
+            first = replay_candidate_set(DEMO / "tiny-red-tower.request.txt", DEMO / "tiny-red-tower.brief.json", fixture, Path(directory) / "one", PALETTE)
+            second = replay_candidate_set(DEMO / "tiny-red-tower.request.txt", DEMO / "tiny-red-tower.brief.json", fixture, Path(directory) / "two", PALETTE)
+            self.assertTrue(first["valid"])
+            self.assertEqual(first["candidate_index"], second["candidate_index"])
+            self.assertEqual([item["id"] for item in first["candidate_index"]], ["compact-box", "stepped-box"])
+            self.assertNotIn("selected", json.loads((Path(first["run_dir"]) / "candidate-index.json").read_text()))
+            root = Path(first["run_dir"])
+            self.assertTrue((root / "candidate-set.json").is_file())
+            self.assertIn("candidate-set.json", first["manifest"]["files"])
+            for candidate in ("compact-box", "stepped-box"):
+                child = root / "candidates" / candidate
+                self.assertTrue((child / "manifest.json").is_file())
+                self.assertTrue((child / "final.ldr").is_file())
+            self.assertEqual(first["manifest"]["files"], second["manifest"]["files"])
+
+    def test_candidate_set_preflights_malformed_and_duplicate_ids(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / "candidates.json"
+            config.write_text(json.dumps({"candidates": [{"id": "bad/id", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")}, {"id": "ok", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")}] }))
+            output = Path(directory) / "run"
+            with self.assertRaises(ValueError):
+                replay_candidate_set(DEMO / "tiny-red-box.request.txt", DEMO / "tiny-red-box.brief.json", config, output, PALETTE)
+            self.assertFalse(output.exists())
+            config.write_text(json.dumps({"candidates": [{"id": "same", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")}, {"id": "same", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")}] }))
+            with self.assertRaises(ValueError):
+                replay_candidate_set(DEMO / "tiny-red-box.request.txt", DEMO / "tiny-red-box.brief.json", config, output, PALETTE)
+            self.assertFalse(output.exists())
+
+    def test_candidate_set_retains_success_when_other_candidate_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / "candidates.json"
+            config.write_text(json.dumps({"candidates": [
+                {"id": "good", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")},
+                {"id": "bad", "scaffold": str(ROOT / "examples/scaffolds/unsupported-depth-3.json")},
+            ]}))
+            result = replay_candidate_set(DEMO / "tiny-red-box.request.txt", DEMO / "tiny-red-box.brief.json", config, Path(directory) / "run", PALETTE)
+            self.assertFalse(result["valid"])
+            self.assertEqual([item["status"] for item in result["candidate_index"]], ["valid", "failed"])
+            self.assertTrue((Path(result["run_dir"]) / "candidates/good/final.ldr").is_file())
+            self.assertTrue((Path(result["run_dir"]) / "candidates/bad/manifest.json").is_file())
     def test_replay_writes_complete_deterministic_chain(self):
         with tempfile.TemporaryDirectory() as directory:
             first = replay_demo(DEMO / "tiny-red-box.request.txt", DEMO / "tiny-red-box.brief.json", ROOT / "examples/scaffolds/box-4x2x2.json", Path(directory) / "one", PALETTE)

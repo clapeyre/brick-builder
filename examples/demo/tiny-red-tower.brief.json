@@ -1,0 +1,10 @@
+{
+  "format": "brick-builder.demo-brief/v1",
+  "request": "Make a tiny red tower with a choice of a compact or stepped shape.",
+  "intent": "small red tower with two visibly distinct candidates",
+  "constraints": {
+    "adult_supervised": true,
+    "depth_studs": 2,
+    "orthogonal": true
+  }
+}

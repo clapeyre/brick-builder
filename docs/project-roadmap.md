@@ -477,6 +477,52 @@ Observed results (2026-09-02):
 - 65 Python tests, byte-compilation, and diff checks pass. Pi, Hermes, UI, and
   renderer behavior were not changed.
 
+#### 3C fifth bounded slice: offline candidate-set replay
+
+Status: verified (2026-09-02).
+
+Compose the existing fixture-driven replay into one bounded candidate set for a
+single checked-in request and brief. A candidate-set fixture explicitly lists
+two stable candidate identifiers and their scaffold fixtures. The replay must
+run each candidate inside its own child run directory, preserve its ordinary
+validation/LDraw/render/evidence/manifest artifacts, and write a root index
+that records each candidate's outcome and child-manifest hash. It must never
+rank, select, or claim a preferred candidate.
+
+Acceptance gates:
+
+- one checked-in request and brief yield two distinct, valid deterministic
+  candidates: compact box and centered stepped box;
+- repeated runs produce byte-identical candidate index data and per-candidate
+  manifest file hashes; root artifacts are contained under the declared run
+  root;
+- a candidate failure remains attributable to its stable identifier and makes
+  the set unsuccessful without deleting or disguising the other candidate's
+  artifacts;
+- malformed candidate identifiers or duplicate identifiers fail before child
+  run directories are created; no automatic ranking, selection, provider,
+  Pi, Hermes, UI, or renderer changes are introduced.
+
+Explicit non-goals: natural-language candidate generation, model ranking,
+selection persistence, child interaction, live provider or vision calls,
+arbitrary candidate counts, Studio automation, and inventory optimization.
+
+Observed results (2026-09-02):
+
+- `demo-candidate-set` replays an explicit two-candidate fixture for one
+  checked-in tiny-red-tower request and brief: a compact box and a centered
+  stepped tower, each under `candidates/<stable-id>/` with its ordinary
+  validation, LDraw, renders, render evidence, and manifest;
+- the root run preserves the request, brief, exact candidate-set fixture, and
+  a `candidate-index.json` containing only stable ids, outcome/status, model
+  id, and each child manifest's SHA-256; no score, winner, or selection is
+  emitted;
+- malformed or duplicate ids fail before a run root exists. If a validly
+  declared candidate later fails, its identifier remains in the index and the
+  successful sibling's artifacts remain available;
+- 68 Python tests, byte-compilation, and diff checks pass. No Pi, Hermes, UI,
+  provider, or renderer changes were made.
+
 ### Milestone 3D: Pi parity slice
 
 #### 3D first bounded slice: offline Pi domain-tool contract

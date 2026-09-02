@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -126,3 +127,95 @@ def replay_demo(request_path: str | Path, brief_path: str | Path, scaffold_path:
     _write(root / "render-evidence.json", render_evidence)
     manifest = finalize_manifest(root, outcome="success", attempts=1, max_attempts=1, palette_path=palette_path, adapter="OfflineEndToEndReplay")
     return {"valid": True, "outcome": "success", "run_dir": str(root), "model_id": model["model_id"], "ldr_sha256": hashlib.sha256(output.read_bytes()).hexdigest(), "manifest": manifest}
+
+
+_CANDIDATE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+
+
+def _candidate_failure(root: Path, message: str, palette_path: str | Path) -> dict[str, Any]:
+    """Persist an orchestrator-level failure so one child remains auditable."""
+    issue = {
+        "code": "CANDIDATE_REPLAY_ERROR",
+        "path": "candidate",
+        "message": message,
+        "repair_hint": "Check the candidate scaffold fixture and replay inputs.",
+    }
+    _write(root / "failure.json", {"valid": False, "issues": [issue]})
+    manifest = finalize_manifest(
+        root, outcome="failed", attempts=1, max_attempts=1,
+        palette_path=palette_path, adapter="OfflineCandidateSetReplay",
+    )
+    return {"valid": False, "outcome": "failed", "run_dir": str(root), "manifest": manifest, "issues": [issue]}
+
+
+def replay_candidate_set(
+    request_path: str | Path,
+    brief_path: str | Path,
+    candidates_path: str | Path,
+    run_dir: str | Path,
+    palette_path: str | Path,
+) -> dict[str, Any]:
+    """Replay exactly two explicit offline candidates under one request/brief.
+
+    Candidate entries contain ``id`` and a scaffold path relative to the
+    candidate-set fixture.  The preflight is intentionally complete before
+    creating any output directory, making malformed sets side-effect free.
+    """
+    request_path, brief_path, candidates_path = map(Path, (request_path, brief_path, candidates_path))
+    request = request_path.read_text(encoding="utf-8")
+    brief = json.loads(brief_path.read_text(encoding="utf-8"))
+    config = json.loads(candidates_path.read_text(encoding="utf-8"))
+    candidates = config.get("candidates") if isinstance(config, dict) else None
+    if not isinstance(candidates, list) or len(candidates) != 2:
+        raise ValueError("candidate set must contain exactly two candidates")
+    prepared: list[tuple[str, Path]] = []
+    ids: set[str] = set()
+    for index, candidate in enumerate(candidates):
+        if not isinstance(candidate, dict):
+            raise ValueError(f"candidate {index} must be an object")
+        candidate_id = candidate.get("id")
+        scaffold_value = candidate.get("scaffold")
+        if not isinstance(candidate_id, str) or not _CANDIDATE_ID.fullmatch(candidate_id):
+            raise ValueError(f"candidate {index} has malformed id")
+        if candidate_id in ids:
+            raise ValueError(f"duplicate candidate id: {candidate_id}")
+        if not isinstance(scaffold_value, str) or not scaffold_value:
+            raise ValueError(f"candidate {candidate_id} must specify scaffold")
+        scaffold_value_path = Path(scaffold_value)
+        scaffold = (scaffold_value_path if scaffold_value_path.is_absolute() else candidates_path.parent / scaffold_value_path).resolve()
+        if not scaffold.is_file():
+            raise ValueError(f"candidate {candidate_id} scaffold does not exist: {scaffold_value}")
+        ids.add(candidate_id)
+        prepared.append((candidate_id, scaffold))
+
+    root = Path(run_dir)
+    if root.exists():
+        raise ValueError(f"run directory already exists: {root}")
+    root.mkdir(parents=True)
+    _write(root / "request.txt", request)
+    _write(root / "brief.json", brief)
+    _write(root / "candidate-set.json", config)
+    results: list[dict[str, Any]] = []
+    for candidate_id, scaffold in prepared:
+        child = root / "candidates" / candidate_id
+        child.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            result = replay_demo(request_path, brief_path, scaffold, child, palette_path)
+        except (OSError, ValueError) as exc:  # retain an auditable failed child and continue
+            result = _candidate_failure(child, str(exc), palette_path)
+        manifest_path = child / "manifest.json"
+        if not manifest_path.is_file():
+            child.mkdir(parents=True, exist_ok=True)
+            result = _candidate_failure(child, "replay returned without a child manifest", palette_path)
+        entry = {
+            "id": candidate_id,
+            "status": "valid" if result.get("valid") else "failed",
+            "outcome": result.get("outcome"),
+            "model_id": result.get("model_id"),
+            "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+        }
+        results.append(entry)
+    overall = "success" if all(item["status"] == "valid" for item in results) else "failed"
+    _write(root / "candidate-index.json", {"schema_version": 1, "candidates": results, "outcome": overall})
+    manifest = finalize_manifest(root, outcome=overall, attempts=1, max_attempts=1, palette_path=palette_path, adapter="OfflineCandidateSetReplay")
+    return {"valid": overall == "success", "outcome": overall, "run_dir": str(root), "candidate_index": results, "manifest": manifest}

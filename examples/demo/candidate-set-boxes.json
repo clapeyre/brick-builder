@@ -1,0 +1,13 @@
+{
+  "format": "brick-builder.demo-candidate-set/v1",
+  "candidates": [
+    {
+      "id": "compact-box",
+      "scaffold": "../scaffolds/box-4x2x2.json"
+    },
+    {
+      "id": "stepped-box",
+      "scaffold": "../scaffolds/stepped-box-4x2-base-2x2-upper.json"
+    }
+  ]
+}
