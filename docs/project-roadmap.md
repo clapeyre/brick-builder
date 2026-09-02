@@ -58,9 +58,9 @@ checks known engineering constraints and preserves the full evidence trail.
 ## Current verified state
 
 The repository contains the deterministic foundation, bounded agent harnesses,
-and offline candidate/selection demonstrations. It does not yet demonstrate
-that a model understands an arbitrary creative request or performs a real
-child-facing local redesign on a LEGO candidate.
+and offline candidate, rendering, and selection demonstrations. It does not
+yet demonstrate that a model understands an arbitrary creative request or
+performs a real child-facing local redesign on a LEGO candidate.
 
 Completed capabilities include:
 
@@ -89,6 +89,9 @@ Completed capabilities include:
   submission, bounded repair/exhaustion, cancellation, and provider failure;
 - offline candidate-set and selection artifacts that preserve validation,
   LDraw, render-evidence, manifest, and receipt provenance.
+- composed one-box, stepped-box, and gatehouse concept candidates with stable
+  IDs, deterministic fixed-camera render evidence, and bounded visual
+  observations for silhouette bounds, aspect, part visibility, and landmarks;
 
 The Hermes experiment proves that an agent can write a candidate, receive
 deterministic feedback, repair invalid geometry, and compile a valid result. It
@@ -1600,3 +1603,58 @@ Observed results (2026-09-02):
   a candidate;
 - 103 Python tests and 20 Pi adapter tests pass, with TypeScript type-checking,
   byte-compilation, and diff checks passing.
+
+### MVP slice 1 render evidence and bounded visual critique
+
+Status: verified (2026-09-02).
+
+Extend the composed concept-candidate path with deterministic fixed-camera render
+evidence and a deliberately narrow critique contract. Successful candidates
+retain per-camera render hashes, rendered part identifiers, polygon counts, and
+projected non-background bounds. The critique reports auditable structural
+visual signals such as silhouette occupancy, aspect ratio, and landmark
+visibility; it does not claim semantic resemblance or alter a model.
+
+Acceptance gates:
+
+- each successful composed candidate is rendered from the existing fixed
+  `front` and `three-quarter` cameras beneath its contained candidate run;
+- repeated fixed-input runs produce byte-identical render files and evidence,
+  while failed candidates stop before render evidence and final LDraw output;
+- the critique artifact records per-candidate, per-camera evidence references
+  and bounded deterministic observations without ranking or selecting a
+  candidate;
+- the CLI and restricted Pi path expose the evidence/critique result without
+  adding shell, filesystem, network, provider, or credential access;
+- existing candidate composition, LEGOization, renderer, replay, Pi, Hermes,
+  and local-redesign behavior remains passing.
+
+Explicit non-goals: vision or live model providers, semantic resemblance
+scoring, automatic visual repair, candidate ranking or selection, new cameras,
+new LEGO geometry, UI changes, Studio automation, child testing, purchasing,
+publishing, or export.
+
+Observed results (2026-09-02):
+
+- successful composed candidates now receive the existing deterministic
+  `front` and `three-quarter` renders beneath their contained candidate run,
+  alongside per-camera hashes, rendered part IDs, polygon counts, and projected
+  non-background bounds;
+- repeated fixed-input candidate rendering is byte-identical, while failed
+  candidates remain indexed and receive no render evidence;
+- `visual-critique.json` records evidence references plus bounded deterministic
+  silhouette occupancy/aspect, visible-part, and optional landmark observations
+  without ranking, selection, semantic resemblance claims, or repair;
+- the existing restricted Pi candidate-composition tool returns the rendering
+  and critique artifacts while `noTools` remains `builtin`; 110 Python tests
+  and 20 Pi adapter tests pass, with TypeScript type-checking, byte-compilation,
+  and diff checks passing.
+
+### Next recommended task
+
+Connect a selected composed candidate to the existing reversible local-redesign
+contract. Keep the first step offline and bounded: reconstruct the selected
+canonical model as an editable spatial concept, preserve hard locks and exact
+undo, and require deterministic validation before accepting a revised LEGO
+assembly. Do not add open-ended semantic repair, live providers, or child-facing
+UI until that full-chain contract is auditable.

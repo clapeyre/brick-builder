@@ -108,6 +108,11 @@ test("concept candidate composition evaluates families and selects explicitly", 
   const result = await api.conceptCandidateSet("raw child request", concepts);
   assert.equal(result.valid, true);
   assert.deepEqual((result.candidates as Array<{ id: string }>).map((item) => item.id), ["box", "step", "gate"]);
+  assert.equal((result.candidate_rendering as { status: string }).status, "success");
+  assert.ok(await stat(join(root, "candidate-rendering.json")));
+  assert.ok(await stat(join(root, "visual-critique.json")));
+  assert.ok(await stat(join(root, "candidates", "gate", "render-evidence.json")));
+  assert.ok(await stat(join(root, "candidates", "gate", "render-front.svg")));
   const selected = await api.selectConceptCandidate("gate");
   assert.equal(selected.valid, true);
   assert.equal(selected.selected_candidate_id, "gate");

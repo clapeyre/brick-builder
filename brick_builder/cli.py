@@ -10,6 +10,7 @@ from pathlib import Path
 from .compiler import compile_model
 from .concept_redesign import ConceptRedesignSession, _concept_from_dict
 from .candidate_composition import CandidateCompositionResult, compose_candidate_set, select_candidate as select_composed_candidate
+from .candidate_rendering import render_candidate_set
 from .demo_replay import replay_candidate_set, replay_demo, select_candidate
 from .generation import finalize_manifest, generate
 from .geometry import profiles_from_palette, validate_geometry
@@ -19,6 +20,7 @@ from .legoization_bridge import legoize_accepted_box
 from .spatial_concept import SpatialConceptSession, write_session_artifacts
 from .stepped_legoization_bridge import legoize_accepted_stepped_boxes
 from .gatehouse_legoization_bridge import legoize_accepted_gatehouse
+from .visual_critique import critique_candidate_set
 from .validation import ValidationError, repair_hint, validate_model
 
 
@@ -318,6 +320,20 @@ def concept_candidate_set_command(args):
         compiled = assembly.get("compiled_ldr") if isinstance(assembly, dict) else None
         if candidate.get("status") == "success" and isinstance(compiled, str):
             (child / "final.ldr").write_text(compiled, encoding="utf-8", newline="\n")
+    rendering = render_candidate_set(output, args.run_dir, args.palette)
+    (args.run_dir / "candidate-rendering.json").write_text(
+        json.dumps(rendering, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        encoding="utf-8", newline="\n",
+    )
+    output["candidate_rendering"] = rendering
+    if result.success:
+        critique = critique_candidate_set(rendering)
+        critique_snapshot = critique.snapshot()
+        (args.run_dir / "visual-critique.json").write_text(
+            json.dumps(critique_snapshot, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+            encoding="utf-8", newline="\n",
+        )
+        output["visual_critique"] = critique_snapshot
     return {"valid": result.success, **output, "run_dir": str(args.run_dir)}
 
 
