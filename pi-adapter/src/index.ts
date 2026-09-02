@@ -6,11 +6,11 @@ import { Type } from "@sinclair/typebox";
 import { createAgentSession, defineTool, ModelRuntime, SessionManager, SettingsManager, type ToolDefinition, type CreateAgentSessionOptions } from "@earendil-works/pi-coding-agent";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall, type FauxResponseStep } from "@earendil-works/pi-ai";
 
-export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate" | "submit-brief" | "request-candidates" | "spatial-concepts" | "concept-redesign" | "legoize-concept" | "legoize-stepped-concept" | "legoize-gatehouse-concept";
+export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate" | "submit-brief" | "request-candidates" | "spatial-concepts" | "concept-redesign" | "legoize-concept" | "legoize-stepped-concept" | "legoize-gatehouse-concept" | "concept-candidate-set" | "select-concept-candidate";
 export type RunnerOptions = { runRoot: string; python?: string; repositoryRoot?: string; signal?: AbortSignal };
 export type CommandResult = { valid: boolean; [key: string]: unknown };
 
-const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate", "submit-brief", "request-candidates", "spatial-concepts", "concept-redesign", "legoize-concept", "legoize-stepped-concept", "legoize-gatehouse-concept"] as const;
+const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate", "submit-brief", "request-candidates", "spatial-concepts", "concept-redesign", "legoize-concept", "legoize-stepped-concept", "legoize-gatehouse-concept", "concept-candidate-set", "select-concept-candidate"] as const;
 const here = dirname(fileURLToPath(import.meta.url));
 const defaultRepo = resolve(here, "../..");
 export const OFFLINE_CANDIDATE_FIXTURE = "towers-with-gatehouse" as const;
@@ -170,6 +170,22 @@ export class BrickBuilderAdapter {
     await writeFile(conceptPath, JSON.stringify(concept, null, 2) + "\n", "utf8");
     return invoke(["legoize-gatehouse-concept", "--concept", conceptPath, "--run-dir", this.runRoot, "--colour", String(colour)], this.options);
   }
+
+  async conceptCandidateSet(requestText: string, concepts: Array<Record<string, unknown>>): Promise<CommandResult> {
+    if (typeof requestText !== "string" || !requestText.trim()) throw new Error("request must be a non-empty string");
+    const requestPath = contained(this.runRoot, resolve(this.runRoot, "candidate-request.txt"));
+    const conceptsPath = contained(this.runRoot, resolve(this.runRoot, "candidate-concepts.json"));
+    await writeFile(requestPath, requestText, "utf8");
+    await writeFile(conceptsPath, JSON.stringify(concepts, null, 2) + "\n", "utf8");
+    return invoke(["concept-candidate-set", "--request", requestPath, "--concepts", conceptsPath, "--run-dir", this.runRoot], this.options);
+  }
+
+  async selectConceptCandidate(candidateId: string): Promise<CommandResult> {
+    if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,47}$/.test(candidateId)) throw new Error("candidate id must be a safe stable identifier");
+    const candidateSet = contained(this.runRoot, resolve(this.runRoot, "candidate-set.json"));
+    const selectionRoot = contained(this.runRoot, resolve(this.runRoot, "selection"));
+    return invoke(["select-concept-candidate", "--candidate-set", candidateSet, "--candidate-id", candidateId, "--run-dir", selectionRoot], this.options);
+  }
 }
 
 const modelSchema = Type.Object({ model: Type.Record(Type.String(), Type.Unknown()) });
@@ -201,6 +217,8 @@ export function createBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefin
     tool("brick_legoize_concept", "LEGOize one accepted aligned generic-box concept through the deterministic one-box bridge. Coverage and structural validity remain separate evidence.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeConcept(p.concept, p.colour ?? 4)) }], details: {} })),
     tool("brick_legoize_stepped_concept", "LEGOize one accepted centered two-tier generic-box concept through the deterministic stepped bridge. Coverage and structural validity remain separate evidence.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeSteppedConcept(p.concept, p.colour ?? 4)) }], details: {} })),
     tool("brick_legoize_gatehouse_concept", "LEGOize one accepted bounded two-tower gatehouse concept through the deterministic gatehouse bridge. Coverage and structural validity remain separate evidence.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeGatehouseConcept(p.concept, p.colour ?? 4)) }], details: {} })),
+    tool("brick_concept_candidate_set", "Evaluate two or three accepted concepts through the supported deterministic families without ranking or automatic selection.", Type.Object({ request: Type.String(), concepts: Type.Array(Type.Record(Type.String(), Type.Unknown()), { minItems: 2, maxItems: 3 }) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.conceptCandidateSet(p.request, p.concepts)) }], details: {} })),
+    tool("brick_select_concept_candidate", "Explicitly select one successful candidate by stable ID and write a provenance receipt.", Type.Object({ candidate_id: Type.String() }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.selectConceptCandidate(p.candidate_id)) }], details: {} })),
   ];
 }
 

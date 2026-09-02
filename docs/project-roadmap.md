@@ -1554,3 +1554,49 @@ Observed results (2026-09-02):
   operation through Pi's explicit domain-only tool surface;
 - 100 Python tests and 18 Pi adapter tests pass, with TypeScript type-checking,
   byte-compilation, and diff checks passing.
+
+### MVP slice 1 candidate composition: supported concept families
+
+Status: verified (2026-09-02).
+
+Compose the supported one-box, stepped-box, and gatehouse concept bridges into
+one explicit candidate-set contract. The set preserves the raw request, each
+candidate's source concept and bridge evidence, stable candidate IDs, and
+success/failure diagnostics. Selection is an explicit user-provided ID and
+produces a provenance receipt; the system does not rank or automatically select
+among candidates.
+
+Acceptance gates:
+
+- a bounded set of two or three accepted concepts is evaluated through the
+  existing supported family bridges without changing their geometry or
+  silently repairing failures;
+- the candidate index records stable IDs, bridge family, status, model ID,
+  artifact hashes, and actionable failure evidence under one contained run
+  root;
+- explicit selection accepts only a successful declared ID and records the
+  source candidate-set hash, candidate artifact hashes, and selected model;
+- malformed, duplicate, unsupported, or failed candidates cannot be presented
+  as a successful selectable set, and no ranking or automatic selection is
+  introduced;
+- an offline Pi session exercises candidate composition and explicit selection
+  through domain-only tools with `noTools: "builtin"`, while existing Python,
+  LEGOization bridges, Hermes, renderer, and Pi behavior remains passing.
+
+Explicit non-goals: new LEGO shapes, semantic scoring, ranking, automatic
+selection, free-form candidate generation, live providers, UI changes, Studio
+automation, child testing, purchasing, publishing, or export.
+
+Observed results (2026-09-02):
+
+- `compose_candidate_set` dispatches two or three accepted concepts in input
+  order to the existing one-box, stepped-box, and gatehouse bridges without
+  ranking or automatic selection;
+- the CLI writes one contained `candidate-set.json`, per-candidate bridge
+  evidence, successful `final.ldr` artifacts, and an explicit selection receipt
+  carrying the candidate-set and artifact hashes;
+- the Pi adapter exposes only the two named domain tools, keeps `noTools` set to
+  `builtin`, and a real scripted `AgentSession` composes and explicitly selects
+  a candidate;
+- 103 Python tests and 20 Pi adapter tests pass, with TypeScript type-checking,
+  byte-compilation, and diff checks passing.

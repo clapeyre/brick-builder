@@ -16,7 +16,7 @@ async function adapter() {
 
 test("domain tools expose only the explicit Brick Builder operations", () => {
   const { api } = { api: new BrickBuilderAdapter({ runRoot: "C:/runs/test" }) };
-  assert.deepEqual(createBrickBuilderTools(api).map((tool) => tool.name), ["brick_catalog", "brick_validate", "brick_analyze", "brick_compile", "brick_demo_generate", "brick_demo_candidate_set", "brick_select_candidate", "brick_submit_brief", "brick_request_candidates", "brick_spatial_concepts", "brick_concept_redesign", "brick_legoize_concept", "brick_legoize_stepped_concept", "brick_legoize_gatehouse_concept"]);
+  assert.deepEqual(createBrickBuilderTools(api).map((tool) => tool.name), ["brick_catalog", "brick_validate", "brick_analyze", "brick_compile", "brick_demo_generate", "brick_demo_candidate_set", "brick_select_candidate", "brick_submit_brief", "brick_request_candidates", "brick_spatial_concepts", "brick_concept_redesign", "brick_legoize_concept", "brick_legoize_stepped_concept", "brick_legoize_gatehouse_concept", "brick_concept_candidate_set", "brick_select_concept_candidate"]);
   assert.equal((createPiSessionOptions(api) as any).noTools, "builtin");
 });
 
@@ -96,6 +96,40 @@ test("aligned gatehouse concept LEGOizes through the deterministic bridge", asyn
   assert.equal((result.assembly as { structural_valid: boolean }).structural_valid, true);
   assert.ok(await stat(join(root, "gatehouse-legoization-bridge.json")));
   assert.ok(await stat(join(root, "final.ldr")));
+});
+
+test("concept candidate composition evaluates families and selects explicitly", async () => {
+  const { root, api } = await adapter();
+  const concepts = [
+    { id: "box", label: "A box", geometry: [{ ref: "box", center: [0, 1, 0], size: [2, 2, 2], color: "#2878b5" }], render: { camera: "three-quarter", geometry_refs: ["box"] } },
+    { id: "step", label: "A step", geometry: [{ ref: "base", center: [0, 0.5, 0], size: [4, 1, 2], color: "#2878b5" }, { ref: "upper", center: [0, 1.5, 0], size: [2, 1, 2], color: "#2878b5" }], render: { camera: "three-quarter", geometry_refs: ["base", "upper"] } },
+    { id: "gate", label: "A gate", geometry: [{ ref: "bridge", center: [0, 1.5, 0], size: [6, 1, 2], color: "#2878b5" }, { ref: "right", center: [2, 0.5, 0], size: [2, 1, 2], color: "#2878b5" }, { ref: "left", center: [-2, 0.5, 0], size: [2, 1, 2], color: "#2878b5" }], render: { camera: "three-quarter", geometry_refs: ["bridge", "right", "left"] } },
+  ];
+  const result = await api.conceptCandidateSet("raw child request", concepts);
+  assert.equal(result.valid, true);
+  assert.deepEqual((result.candidates as Array<{ id: string }>).map((item) => item.id), ["box", "step", "gate"]);
+  const selected = await api.selectConceptCandidate("gate");
+  assert.equal(selected.valid, true);
+  assert.equal(selected.selected_candidate_id, "gate");
+  assert.equal(selected.candidate_set_hash, result.candidate_set_hash);
+  assert.ok(await stat(join(root, "selection", "selection.json")));
+});
+
+test("a real scripted Pi session composes concepts and selects only an explicit id", async () => {
+  const { root, api } = await adapter();
+  const concepts = [
+    { id: "box", label: "A box", geometry: [{ ref: "box", center: [0, 1, 0], size: [2, 2, 2], color: "#2878b5" }], render: { camera: "three-quarter", geometry_refs: ["box"] } },
+    { id: "step", label: "A step", geometry: [{ ref: "base", center: [0, 0.5, 0], size: [4, 1, 2], color: "#2878b5" }, { ref: "upper", center: [0, 1.5, 0], size: [2, 1, 2], color: "#2878b5" }], render: { camera: "three-quarter", geometry_refs: ["base", "upper"] } },
+  ];
+  const outcome = await runScriptedPiSession(api, "compose concepts and select step", [
+    { kind: "tool", name: "brick_concept_candidate_set", arguments: { request: "raw child request", concepts } },
+    { kind: "tool", name: "brick_select_concept_candidate", arguments: { candidate_id: "step" } },
+    { kind: "text", text: "Step selected." },
+  ]);
+  assert.equal(outcome.status, "completed");
+  assert.deepEqual(outcome.toolCalls, ["brick_concept_candidate_set", "brick_select_concept_candidate"]);
+  assert.equal(outcome.assistantText, "Step selected.");
+  assert.equal(JSON.parse(await readRunArtifact(root, "selection/selection.json")).selected_candidate_id, "step");
 });
 
 test("offline candidate replay and explicit selection stay contained and produce a receipt", async () => {

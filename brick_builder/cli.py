@@ -3,11 +3,13 @@
 import argparse
 import hashlib
 import json
+import re
 from importlib.resources import files
 from pathlib import Path
 
 from .compiler import compile_model
 from .concept_redesign import ConceptRedesignSession, _concept_from_dict
+from .candidate_composition import CandidateCompositionResult, compose_candidate_set, select_candidate as select_composed_candidate
 from .demo_replay import replay_candidate_set, replay_demo, select_candidate
 from .generation import finalize_manifest, generate
 from .geometry import profiles_from_palette, validate_geometry
@@ -284,6 +286,56 @@ def legoize_gatehouse_concept_command(args):
     return {"valid": result.success, **output, "run_dir": str(args.run_dir)}
 
 
+def concept_candidate_set_command(args):
+    request = args.request.read_text(encoding="utf-8")
+    raw_concepts = json.loads(args.concepts.read_text(encoding="utf-8"))
+    if not isinstance(raw_concepts, list):
+        raise ValueError("concepts input must be a list")
+    concepts = []
+    for value in raw_concepts:
+        try:
+            concepts.append(_concept_from_dict(value))
+        except (TypeError, ValueError, KeyError):
+            concepts.append(value)
+    result = compose_candidate_set(request, concepts, load_palette(args.palette))
+    output = result.snapshot()
+    args.run_dir.mkdir(parents=True, exist_ok=True)
+    (args.run_dir / "candidate-set.json").write_text(
+        json.dumps(output, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        encoding="utf-8", newline="\n",
+    )
+    for index, candidate in enumerate(result.candidates, start=1):
+        candidate_id = candidate.get("id")
+        directory_name = candidate_id if isinstance(candidate_id, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,47}", candidate_id) else f"candidate-{index:02d}"
+        child = args.run_dir / "candidates" / directory_name
+        child.mkdir(parents=True, exist_ok=True)
+        (child / "bridge.json").write_text(
+            json.dumps(candidate, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+            encoding="utf-8", newline="\n",
+        )
+        bridge = candidate.get("bridge")
+        assembly = bridge.get("assembly") if isinstance(bridge, dict) else None
+        compiled = assembly.get("compiled_ldr") if isinstance(assembly, dict) else None
+        if candidate.get("status") == "success" and isinstance(compiled, str):
+            (child / "final.ldr").write_text(compiled, encoding="utf-8", newline="\n")
+    return {"valid": result.success, **output, "run_dir": str(args.run_dir)}
+
+
+def select_composed_candidate_command(args):
+    value = json.loads(args.candidate_set.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("candidate-set artifact must be an object")
+    result = CandidateCompositionResult(
+        value.get("request_text", ""), tuple(value.get("candidates", [])), value.get("status", ""), value.get("candidate_set_hash", "")
+    )
+    receipt = select_composed_candidate(result, args.candidate_id)
+    args.run_dir.mkdir(parents=True, exist_ok=True)
+    (args.run_dir / "selection.json").write_text(
+        json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
+    )
+    return {"valid": True, **receipt, "run_dir": str(args.run_dir)}
+
+
 def main(argv=None):
     if argv is None:
         import sys
@@ -291,7 +343,7 @@ def main(argv=None):
         argv = sys.argv[1:]
     if (
         len(argv) >= 2
-        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "demo-replay", "demo-candidate-set", "select-candidate", "spatial-concepts", "concept-redesign", "legoize-concept", "legoize-stepped-concept", "legoize-gatehouse-concept", "manifest", "-h", "--help"}
+        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "demo-replay", "demo-candidate-set", "select-candidate", "spatial-concepts", "concept-redesign", "legoize-concept", "legoize-stepped-concept", "legoize-gatehouse-concept", "concept-candidate-set", "select-concept-candidate", "manifest", "-h", "--help"}
         and not argv[0].startswith("-")
     ):
         argv = ["compile", *argv]
@@ -392,6 +444,19 @@ def main(argv=None):
     gatehouse_parser.add_argument("--palette", type=Path, default=DEFAULT_PALETTE)
     gatehouse_parser.add_argument("--colour", type=int, default=4)
     gatehouse_parser.set_defaults(handler=legoize_gatehouse_concept_command)
+
+    concept_set_parser = subparsers.add_parser("concept-candidate-set")
+    concept_set_parser.add_argument("--request", type=Path, required=True)
+    concept_set_parser.add_argument("--concepts", type=Path, required=True)
+    concept_set_parser.add_argument("--run-dir", type=Path, required=True)
+    concept_set_parser.add_argument("--palette", type=Path, default=DEFAULT_PALETTE)
+    concept_set_parser.set_defaults(handler=concept_candidate_set_command)
+
+    concept_select_parser = subparsers.add_parser("select-concept-candidate")
+    concept_select_parser.add_argument("--candidate-set", type=Path, required=True)
+    concept_select_parser.add_argument("--candidate-id", required=True)
+    concept_select_parser.add_argument("--run-dir", type=Path, required=True)
+    concept_select_parser.set_defaults(handler=select_composed_candidate_command)
 
     args = parser.parse_args(argv)
     try:
