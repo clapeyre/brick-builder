@@ -657,6 +657,49 @@ Observed results (2026-09-02):
 - 74 Python tests, byte-compilation, and diff checks pass; one Tk smoke is
   skipped solely because the bundled runtime cannot initialize Tcl/Tk.
 
+#### 4A selector follow-up: fitted interactive previews
+
+Status: verified (2026-09-02).
+
+Correct the fixture selector's actual-canvas preview behavior. Canonical model
+coordinates are LDraw units, so each candidate preview must first center its
+model bounds and derive a deterministic scale that fits the visible canvas
+with padding. Add per-candidate mouse-drag rotation and an explicit reset to
+the fixed three-quarter view; the preview must redraw from the exact generated
+canonical model after every view change.
+
+Acceptance gates:
+
+- compact and stepped models fit completely within their canvases with visible
+  bounded geometry and distinct projected silhouettes at the default view;
+- drag events update only the interacted candidate's yaw/pitch and redraw its
+  deterministic generated-model projection; reset restores the named default
+  view exactly;
+- controller-level tests verify centering, fit bounds, distinct candidates,
+  independent rotation, and reset without requiring Tk; a widget smoke is
+  reported only if Tcl/Tk initializes;
+- candidate generation/selection artifacts and all offline, provider, Pi,
+  Hermes, Studio, and safety boundaries remain unchanged.
+
+Explicit non-goals: photorealistic rendering, Studio rendering, free-camera
+physics, mesh editing, free-text generation, new candidate shapes, UI polish,
+or child-comprehension claims.
+
+Observed results (2026-09-02):
+
+- previews now center the transformed canonical bounds at the canvas origin,
+  calculate a padded deterministic fit scale from the active yaw/pitch, and
+  globally depth-sort all generated-model faces. Both candidates are visible
+  and distinct at the default three-quarter view;
+- dragging a generated preview updates only that candidate's yaw/pitch and
+  redraws it; its Reset view button restores the exact default. Drag and Reset
+  controls remain inert/disabled before successful generation;
+- controller tests cover canvas fit, distinct projections, independent
+  rotation, and exact reset. The bundled runtime still cannot initialize Tcl/Tk
+  for a visual smoke, so no screenshot-based visual claim is made;
+- 76 Python tests, byte-compilation, and diff checks pass. Candidate artifacts
+  and restricted integrations remain unchanged.
+
 ### Milestone 3D: Pi parity slice
 
 #### 3D first bounded slice: offline Pi domain-tool contract

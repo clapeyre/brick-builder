@@ -46,6 +46,27 @@ class FixtureDemoControllerTests(unittest.TestCase):
             self.assertTrue(first.is_dir())
             self.assertTrue(second.is_dir())
 
+    def test_fitted_previews_are_centered_and_inside_canvas(self):
+        with tempfile.TemporaryDirectory() as directory:
+            controller = FixtureDemoController(directory)
+            controller.create_tower_choices()
+            for candidate_id in controller.candidate_ids:
+                points = [point for face in controller.preview_faces(candidate_id) for point in face["points"]]
+                self.assertTrue(all(0 <= x <= 360 and 0 <= y <= 260 for x, y in points))
+                self.assertGreater(max(x for x, _ in points) - min(x for x, _ in points), 100)
+                self.assertGreater(max(y for _, y in points) - min(y for _, y in points), 100)
+
+    def test_preview_rotation_is_independent_and_reset_is_exact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            controller = FixtureDemoController(directory)
+            controller.create_tower_choices()
+            original = controller.preview_faces("compact-box")
+            controller.rotate_preview("compact-box", delta_yaw=18, delta_pitch=-7)
+            self.assertEqual(controller.preview_state("stepped-box"), {"yaw": -35.0, "pitch": 25.0})
+            self.assertNotEqual(controller.preview_faces("compact-box"), original)
+            self.assertEqual(controller.reset_preview("compact-box"), {"yaw": -35.0, "pitch": 25.0})
+            self.assertEqual(controller.preview_faces("compact-box"), original)
+
     def test_failed_candidate_set_is_not_exposed_as_generated(self):
         with tempfile.TemporaryDirectory() as directory:
             failed_run = Path(directory) / "tower-choices-001"
@@ -88,6 +109,8 @@ class FixtureDemoTkSmokeTests(unittest.TestCase):
                 app = FixtureDemoApp(FixtureDemoController(directory), root)
                 self.assertEqual(str(app.select_buttons["compact-box"]["state"]), "disabled")
                 self.assertEqual(str(app.select_buttons["stepped-box"]["state"]), "disabled")
+                self.assertEqual(str(app.reset_buttons["compact-box"]["state"]), "disabled")
+                self.assertEqual(str(app.reset_buttons["stepped-box"]["state"]), "disabled")
         finally:
             root.destroy()
 
