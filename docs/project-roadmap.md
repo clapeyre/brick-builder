@@ -568,6 +568,52 @@ Observed results (2026-09-02):
 - 70 Python tests, byte-compilation, and diff checks pass. No UI, Pi, Hermes,
   provider, Studio, purchasing, or publishing behavior was added.
 
+#### 4A second bounded slice: local fixture-demo selector
+
+Status: verified (2026-09-02).
+
+Build a small local Tk demonstration around the existing offline tower
+candidate-set and explicit selection contracts. One `Create tower choices`
+action creates a fresh contained candidate run; two side-by-side deterministic
+canvas previews identify the compact and stepped candidates; two explicit
+selection buttons write the existing auditable selected-output bundle and show
+its local destination. The screen is a fixture demo, not a claim that free
+text is being understood or that a child has validated the interaction.
+
+Acceptance gates:
+
+- a testable non-Tk controller creates the existing two-candidate run and can
+  select only an explicitly named candidate into a fresh bundle;
+- the Tk view has one generation action, two visibly distinct deterministic
+  previews with stable candidate labels, disabled selection before generation,
+  and an explicit result/status after selection;
+- no network/provider, model generation, general filesystem tool, Pi/Hermes,
+  Studio, purchasing, publishing, or silent selection is introduced; run
+  artifacts stay beneath a user-supplied run root;
+- focused controller tests, the existing full test suite, byte-compilation,
+  and diff checks pass. A real Tk smoke is reported only when the local Python
+  runtime can initialize Tcl/Tk.
+
+Explicit non-goals: free-text parsing, voice, child-comprehension claims,
+responsive production design, undo/retry/local redesign, image export,
+candidate ranking, Studio launch, and physical-build claims.
+
+Observed results (2026-09-02):
+
+- `python -m brick_builder.fixture_demo_selector --run-root <directory>`
+  provides one explicit `Create tower choices` action, side-by-side labelled
+  compact and stepped projections derived from the generated canonical models,
+  and disabled selection controls until a candidate set exists;
+- a headless `FixtureDemoController` creates fresh contained candidate runs
+  and explicitly selects either stable id through the verified selection
+  receipt contract; it cannot select before generation or infer an id;
+- controller tests verify distinct previews and contained selected bundles.
+  The bundled Python runtime's Tcl/Tk lacks `init.tcl`, so its widget smoke is
+  correctly skipped; no screenshot or visual-judgment claim is made;
+- 73 Python tests, byte-compilation, and diff checks pass. No provider,
+  network, Pi, Hermes, Studio, purchasing, publishing, or model generation was
+  added.
+
 ### Milestone 3D: Pi parity slice
 
 #### 3D first bounded slice: offline Pi domain-tool contract
