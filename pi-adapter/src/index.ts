@@ -1,18 +1,22 @@
 import { spawn } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Type } from "@sinclair/typebox";
 import { createAgentSession, defineTool, ModelRuntime, SessionManager, SettingsManager, type ToolDefinition, type CreateAgentSessionOptions } from "@earendil-works/pi-coding-agent";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall, type FauxResponseStep } from "@earendil-works/pi-ai";
 
-export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate";
+export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate";
 export type RunnerOptions = { runRoot: string; python?: string; repositoryRoot?: string; signal?: AbortSignal };
 export type CommandResult = { valid: boolean; [key: string]: unknown };
 
-const operations = ["catalog", "validate", "analyze", "compile", "demo-generate"] as const;
+const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate"] as const;
 const here = dirname(fileURLToPath(import.meta.url));
 const defaultRepo = resolve(here, "../..");
+export const OFFLINE_CANDIDATE_FIXTURE = "towers-with-gatehouse" as const;
+export const OFFLINE_CANDIDATE_IDS = ["compact-box", "stepped-box", "gatehouse"] as const;
+export type OfflineCandidateFixture = typeof OFFLINE_CANDIDATE_FIXTURE;
+export type OfflineCandidateId = typeof OFFLINE_CANDIDATE_IDS[number];
 
 function contained(root: string, candidate: string): string {
   const base = resolve(root), path = resolve(candidate);
@@ -78,6 +82,22 @@ export class BrickBuilderAdapter {
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 3) throw new Error("maxAttempts must be an integer from 1 to 3");
     return invoke(["demo-generate", request, "--run-dir", this.runRoot, "--max-attempts", String(maxAttempts)], this.options);
   }
+  async demoCandidateSet(fixture: OfflineCandidateFixture = OFFLINE_CANDIDATE_FIXTURE): Promise<CommandResult> {
+    if (fixture !== OFFLINE_CANDIDATE_FIXTURE) throw new Error(`unknown offline candidate fixture: ${fixture}`);
+    const repositoryRoot = resolve(this.options.repositoryRoot ?? defaultRepo);
+    const fixtureRoot = resolve(repositoryRoot, "examples", "demo");
+    const request = resolve(fixtureRoot, "tiny-red-tower.request.txt");
+    const brief = resolve(fixtureRoot, "tiny-red-tower.brief.json");
+    const candidates = resolve(fixtureRoot, "candidate-set-towers-with-gatehouse.json");
+    const run = contained(this.runRoot, join(this.runRoot, "candidate-set"));
+    return invoke(["demo-candidate-set", "--request-file", request, "--brief", brief, "--candidates", candidates, "--run-dir", run], this.options);
+  }
+  async selectCandidate(candidateId: OfflineCandidateId): Promise<CommandResult> {
+    if (!(OFFLINE_CANDIDATE_IDS as readonly string[]).includes(candidateId)) throw new Error(`unknown offline candidate id: ${candidateId}`);
+    const source = contained(this.runRoot, join(this.runRoot, "candidate-set"));
+    const destination = contained(this.runRoot, join(this.runRoot, "selections", candidateId));
+    return invoke(["select-candidate", "--candidate-set-run", source, "--candidate-id", candidateId, "--destination", destination], this.options);
+  }
 }
 
 const modelSchema = Type.Object({ model: Type.Record(Type.String(), Type.Unknown()) });
@@ -89,6 +109,8 @@ export function createBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefin
     tool("brick_analyze", "Analyze one valid canonical Brick Builder model.", modelSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.analyze(p.model)) }], details: {} })),
     tool("brick_compile", "Compile one canonical model to LDraw inside this run.", modelSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.compile(p.model)) }], details: {} })),
     tool("brick_demo_generate", "Run the deterministic offline demo generation workflow.", Type.Object({ request: Type.String(), max_attempts: Type.Optional(Type.Integer({ minimum: 1, maximum: 3 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.demoGenerate(p.request, p.max_attempts ?? 3)) }], details: {} })),
+    tool("brick_demo_candidate_set", "Replay the checked-in offline three-candidate fixture.", Type.Object({ fixture: Type.Optional(Type.Literal(OFFLINE_CANDIDATE_FIXTURE)) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.demoCandidateSet(p.fixture ?? OFFLINE_CANDIDATE_FIXTURE)) }], details: {} })),
+    tool("brick_select_candidate", "Select one explicitly named candidate from the contained replay and write its receipt.", Type.Object({ candidate_id: Type.Union(OFFLINE_CANDIDATE_IDS.map((id) => Type.Literal(id)) as any) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.selectCandidate(p.candidate_id)) }], details: {} })),
   ];
 }
 
@@ -147,10 +169,15 @@ export async function runScriptedPiSession(
     settingsManager: SettingsManager.create(adapter.runRoot, adapter.runRoot),
   });
   const events: string[] = [], toolCalls: string[] = [], assistant: string[] = [];
+  let providerTerminalError = false;
   const unsubscribe = sessionResult.session.subscribe((event: any) => {
     if (event.type === "tool_execution_start") { toolCalls.push(event.toolName); events.push(`tool:start:${event.toolName}`); }
     else if (event.type === "tool_execution_end") events.push(`tool:end:${event.toolName}`);
     else if (event.type === "message_end" && event.message?.role === "assistant") {
+      // Pi surfaces provider failures as a terminal assistant message rather than
+      // rejecting prompt()/waitForIdle(). Preserve that signal for the wrapper's
+      // outcome classification while leaving normal and cancelled turns alone.
+      if (event.message.stopReason === "error") providerTerminalError = true;
       const text = event.message.content?.filter((part: any) => part.type === "text").map((part: any) => part.text).join("") ?? "";
       if (text) assistant.push(text);
     } else events.push(event.type);
@@ -163,6 +190,7 @@ export async function runScriptedPiSession(
     await sessionResult.session.prompt(prompt);
     await sessionResult.session.waitForIdle();
     if (options.signal?.aborted) status = "cancelled";
+    else if (providerTerminalError) status = "provider-error";
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     status = /cancel/i.test(message) ? "cancelled" : /provider|unavailable/i.test(message) ? "provider-error" : "session-error";

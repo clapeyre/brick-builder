@@ -946,6 +946,122 @@ Observed results (2026-09-01):
   and using Node's native test runner verifies the same test module instead.
   Hermes files and the deterministic Python core remain unchanged.
 
+#### 3D third bounded slice: offline candidate-set and selection receipt
+
+Status: verified (2026-09-02).
+
+Expose the already verified fixture-driven candidate-set replay and explicit
+selected-candidate receipt through the existing restricted Pi adapter. The
+adapter may receive only checked-in fixture identifiers and an explicit stable
+candidate id; it must create all replay and selected-bundle artifacts beneath
+its caller-provided run root. Preserve the existing deterministic Python
+candidate replay, fixture selector, and selection-bundle contracts.
+
+Acceptance gates:
+
+- Pi exposes narrowly named candidate-set replay and explicit candidate
+  selection domain tools in addition to the existing surface, while
+  `noTools: "builtin"` remains configured and no generic shell or filesystem
+  tool is introduced;
+- a real scripted offline Pi `AgentSession` replays the declared candidate set,
+  selects an explicit valid stable id, and produces an auditable selection
+  receipt whose source and selected artifacts remain under its run root;
+- invalid fixture identifiers, invalid candidate ids, and path-escape attempts
+  are rejected without creating output outside the supplied run root;
+- existing fixture selector, Python candidate replay and receipt tests,
+  adapter/session tests, and Hermes behavior remain passing.
+
+Explicit non-goals: live provider calls or credentials, free-text candidate
+generation, ranking or automatic selection, Pi-driven UI changes, Studio
+automation, arbitrary filesystem or shell access, new LEGOization shapes, and
+changes to the deterministic Python core or fixture selector.
+
+Observed results (2026-09-02):
+
+- `brick_demo_candidate_set` accepts only the checked-in
+  `towers-with-gatehouse` fixture and writes its replay at
+  `runRoot/candidate-set`; `brick_select_candidate` accepts only one of the
+  three declared stable ids and derives both the source and receipt destination
+  under that same root;
+- the Pi configuration still uses `noTools: "builtin"`; the adapter adds no
+  general shell or filesystem operation. TypeScript tests cover direct replay
+  and selection plus real scripted-session call sequences, rejected fixture/id
+  values, and run-root read containment;
+- the verified repair below resolves the broken transitive runtime dependency
+  and terminal provider outcome classification; all 10 emitted Node adapter
+  tests now pass alongside the Python suite and TypeScript type-check.
+
+#### 3D third-slice repair: restore pinned Pi-session test runtime
+
+Status: verified (2026-09-02).
+
+Repair only the broken transitive runtime dependency that prevents the
+already-pinned Pi adapter from loading its real offline session tests. Preserve
+the direct Pi package pins, the restricted domain-tool surface, and all
+existing Python behavior. The repair must be lockfile/package-resolution
+bounded; it must not patch `node_modules`, vendor third-party code, widen Pi
+permissions, or change application behavior.
+
+Acceptance gates:
+
+- a clean frozen-lockfile installation supplies the module imported by the Pi
+  dependency graph, without committing generated dependency directories;
+- TypeScript type-check and emitted Node tests run the real offline
+  `AgentSession` suite, including candidate replay and explicit receipt
+  selection, without provider credentials or network calls;
+- direct Pi packages remain exact-pinned at `0.84.4`; no shell/filesystem tool,
+  live provider, credential, or UI behavior is introduced;
+- Python suite, byte-compilation, and diff checks remain passing.
+
+Explicit non-goals: changing application source to work around third-party
+package internals, updating Pi to a different release, adding dependencies for
+unrelated features, modifying the deterministic Python core, or committing
+`node_modules`, `dist`, or package-store artifacts.
+
+Observed results (2026-09-02):
+
+- the workspace-level pnpm override resolves the exact Pi packages' broken
+  transitive `typebox@1.3.7` request to the compatible `typebox@1.3.6`; the
+  two direct Pi package pins remain exactly `0.84.4` and the direct
+  `@sinclair/typebox` declaration remains unchanged;
+- a clean frozen-lockfile installation and emitted Node runner now load and
+  execute the real offline Pi session suite. Package-store hard links require
+  the runner to execute outside this worktree's restricted filesystem sandbox;
+  this is an execution boundary, not a new application permission.
+
+#### 3D third-slice repair follow-up: scripted provider terminal outcome
+
+Status: verified (2026-09-02).
+
+Correct the Pi-session outcome classification only if the real pinned Pi
+runtime records a scripted provider failure as a terminal event without
+throwing from `prompt()` or `waitForIdle()`. Preserve the existing outcome
+artifact format, restricted tool surface, and cancellation behavior.
+
+Acceptance gates:
+
+- the scripted provider-failure case records `provider-error`, while the
+  existing success, malformed-call, exhaustion, and cancellation cases retain
+  their asserted statuses;
+- the emitted Node test suite passes under an execution environment permitted
+  to read the lockfile-installed package store; no live provider or credential
+  is used;
+- Python tests, type-checking, byte-compilation, and diff checks pass.
+
+Explicit non-goals: changing Pi versions or dependencies, generalizing error
+handling outside the scripted session wrapper, changing tools, or adding live
+provider behavior.
+
+Observed results (2026-09-02):
+
+- the session wrapper now recognizes Pi's terminal assistant message with
+  `stopReason: "error"` as `provider-error`, while cancellation retains
+  precedence and successful scripted sessions remain `completed`;
+- all 10 emitted Node adapter tests pass, covering the new candidate replay and
+  selection receipt flow plus success, malformed calls, exhaustion,
+  cancellation, and provider failure. No provider credentials or network calls
+  are used by those sessions.
+
 Reproduce the bounded Hermes workflow in Pi without changing the Python core.
 The initial tool surface should be domain-specific, approximately:
 

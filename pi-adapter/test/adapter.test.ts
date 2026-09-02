@@ -14,10 +14,24 @@ async function adapter() {
   return { root, api: new BrickBuilderAdapter({ runRoot: root, repositoryRoot: repo, python }) };
 }
 
-test("domain tools expose only the five Brick Builder operations", () => {
+test("domain tools expose only the bounded Brick Builder operations", () => {
   const { api } = { api: new BrickBuilderAdapter({ runRoot: "C:/runs/test" }) };
-  assert.deepEqual(createBrickBuilderTools(api).map((tool) => tool.name), ["brick_catalog", "brick_validate", "brick_analyze", "brick_compile", "brick_demo_generate"]);
+  assert.deepEqual(createBrickBuilderTools(api).map((tool) => tool.name), ["brick_catalog", "brick_validate", "brick_analyze", "brick_compile", "brick_demo_generate", "brick_demo_candidate_set", "brick_select_candidate"]);
   assert.equal((createPiSessionOptions(api) as any).noTools, "builtin");
+});
+
+test("offline candidate replay and explicit selection stay contained and produce a receipt", async () => {
+  const { root, api } = await adapter();
+  const replay = await api.demoCandidateSet();
+  assert.equal(replay.valid, true);
+  assert.equal(replay.run_dir, join(root, "candidate-set"));
+  const selected = await api.selectCandidate("gatehouse");
+  assert.equal(selected.valid, true);
+  assert.equal((selected as any).selection.selected_candidate_id, "gatehouse");
+  const receipt = JSON.parse(await readRunArtifact(root, "selections/gatehouse/selection.json"));
+  assert.equal(receipt.selected_candidate_id, "gatehouse");
+  await assert.rejects(() => api.selectCandidate("missing" as any), /unknown offline candidate id/);
+  await assert.rejects(() => api.demoCandidateSet("other" as any), /unknown offline candidate fixture/);
 });
 
 test("catalog, validation, analysis and deterministic compilation stay offline", async () => {
@@ -79,6 +93,32 @@ test("scripted malformed calls and bounded repair/exhaustion are auditable", asy
   ]);
   assert.deepEqual(repairedOutcome.toolCalls, ["brick_validate", "brick_validate"]);
   await assert.rejects(() => runBounded(2, async () => ({ feedback: [{ code: "invalid" }] })), /exhausted after 2/);
+});
+
+test("a real scripted Pi session replays and selects an offline candidate", async () => {
+  const { root, api } = await adapter();
+  const outcome = await runScriptedPiSession(api, "replay the fixture and select gatehouse", [
+    { kind: "tool", name: "brick_demo_candidate_set", arguments: {} },
+    { kind: "tool", name: "brick_select_candidate", arguments: { candidate_id: "gatehouse" } },
+    { kind: "text", text: "Gatehouse selected." },
+  ]);
+  assert.equal(outcome.status, "completed");
+  assert.deepEqual(outcome.toolCalls, ["brick_demo_candidate_set", "brick_select_candidate"]);
+  assert.equal(outcome.assistantText, "Gatehouse selected.");
+  assert.equal(JSON.parse(await readRunArtifact(root, "selections/gatehouse/selection.json")).selected_candidate_id, "gatehouse");
+});
+
+test("scripted Pi candidate selection rejects unknown ids and escapes", async () => {
+  const { root, api } = await adapter();
+  const outcome = await runScriptedPiSession(api, "attempt unsafe selection", [
+    { kind: "tool", name: "brick_select_candidate", arguments: { candidate_id: "../outside" } },
+    { kind: "tool", name: "brick_demo_candidate_set", arguments: { fixture: "../../outside" } },
+    { kind: "text", text: "Rejected." },
+  ]);
+  assert.equal(outcome.status, "completed");
+  assert.deepEqual(outcome.toolCalls, ["brick_select_candidate", "brick_demo_candidate_set"]);
+  assert.equal(outcome.assistantText, "Rejected.");
+  await assert.rejects(() => readRunArtifact(root, "../outside/selection.json"), /inside the caller-provided run root/);
 });
 
 test("scripted cancellation and provider failure have deterministic outcomes", async () => {
