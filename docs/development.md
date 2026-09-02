@@ -1,5 +1,10 @@
 # Developer quickstart
 
+For a new Git worktree, first read [worktree-setup.md](worktree-setup.md).
+Worktrees do not include ignored virtual environments or Node dependencies;
+the guide gives the canonical bootstrap commands and the required wording for
+setup, test, and execution-environment status.
+
 Create an isolated environment (PowerShell):
 
 ```powershell
