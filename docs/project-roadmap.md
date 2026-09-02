@@ -816,6 +816,46 @@ Observed results (2026-09-02):
 - 77 Python tests, byte-compilation, and diff checks pass. The bundled
   runtime's Tk smoke remains skipped solely for its missing Tcl/Tk data.
 
+#### 4A selector follow-up: explicit three-choice gatehouse layout
+
+Status: verified (2026-09-02).
+
+Connect the already verified, separately checked-in three-candidate replay
+fixture to the fixture selector. The screen must show compact tower, stepped
+tower, and gatehouse as three equal explicit choices, each projecting only its
+generated canonical model and retaining independent drag/reset and selection
+state.
+
+Acceptance gates:
+
+- one generation action yields the declared compact-box, stepped-box, and
+  gatehouse candidate order, with an individually fitted, visibly bounded
+  preview and explicit selection control for each;
+- all three camera states are independent; drag/reset and explicit selection
+  preserve the existing auditable candidate and selected-bundle contracts;
+- all controls remain disabled after startup or failed generation, and a
+  failed three-candidate run continues to report actionable diagnostics;
+- controller tests cover all three choices, the existing full suite,
+  byte-compilation, and diff checks pass; a Tk smoke is reported only if Tcl/Tk
+  initializes.
+
+Explicit non-goals: free-text generation, automatic choice or ranking,
+responsive production layout, image export, new LEGO geometry, candidate-set
+cardinality changes, Pi/Hermes work, Studio launch, and child testing.
+
+Observed results (2026-09-02):
+
+- the fixture selector now consumes only the separately declared three-choice
+  fixture and presents compact tower, stepped tower, and gatehouse side by
+  side, each from its generated canonical model;
+- each choice has independently fitted drag/reset preview state and an explicit
+  selection button that writes the existing auditable selection bundle;
+- controller and Tk smoke assertions cover all three disabled startup controls,
+  three generated previews, gatehouse selection, and cross-choice camera-state
+  isolation; no generic gallery or candidate-set expansion was introduced;
+- 82 Python tests, byte-compilation, and diff checks pass. The bundled runtime
+  skips the widget smoke solely because its Tcl/Tk data cannot initialize.
+
 ### Milestone 3D: Pi parity slice
 
 #### 3D first bounded slice: offline Pi domain-tool contract

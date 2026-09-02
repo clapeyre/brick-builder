@@ -20,22 +20,28 @@ class FixtureDemoControllerTests(unittest.TestCase):
             run = Path(result["run_dir"])
             self.assertTrue(result["valid"])
             self.assertEqual(run.parent, root)
-            self.assertEqual([entry["id"] for entry in result["candidate_index"]], ["compact-box", "stepped-box"])
+            self.assertEqual([entry["id"] for entry in result["candidate_index"]], ["compact-box", "stepped-box", "gatehouse"])
             compact_faces = controller.preview_faces("compact-box")
             stepped_faces = controller.preview_faces("stepped-box")
+            gatehouse_faces = controller.preview_faces("gatehouse")
             self.assertGreater(len(compact_faces), 0)
             self.assertGreater(len(stepped_faces), 0)
+            self.assertGreater(len(gatehouse_faces), 0)
             self.assertNotEqual(
                 [(face["block_id"], face["points"]) for face in compact_faces],
                 [(face["block_id"], face["points"]) for face in stepped_faces],
             )
+            self.assertNotEqual(
+                [(face["block_id"], face["points"]) for face in compact_faces],
+                [(face["block_id"], face["points"]) for face in gatehouse_faces],
+            )
             with self.assertRaises(ValueError):
                 controller.select("compact")
-            selected = controller.select("stepped-box")
+            selected = controller.select("gatehouse")
             destination = Path(selected["run_dir"])
             self.assertTrue(destination.is_relative_to(root))
             receipt = json.loads((destination / "selection.json").read_text(encoding="utf-8"))
-            self.assertEqual(receipt["selected_candidate_id"], "stepped-box")
+            self.assertEqual(receipt["selected_candidate_id"], "gatehouse")
 
     def test_repeated_generation_uses_fresh_runs(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -63,9 +69,14 @@ class FixtureDemoControllerTests(unittest.TestCase):
             original = controller.preview_faces("compact-box")
             controller.rotate_preview("compact-box", delta_yaw=18, delta_pitch=-7)
             self.assertEqual(controller.preview_state("stepped-box"), {"yaw": -35.0, "pitch": 25.0})
+            self.assertEqual(controller.preview_state("gatehouse"), {"yaw": -35.0, "pitch": 25.0})
             self.assertNotEqual(controller.preview_faces("compact-box"), original)
             self.assertEqual(controller.reset_preview("compact-box"), {"yaw": -35.0, "pitch": 25.0})
             self.assertEqual(controller.preview_faces("compact-box"), original)
+            controller.rotate_preview("gatehouse", delta_yaw=-11, delta_pitch=6)
+            self.assertEqual(controller.preview_state("compact-box"), {"yaw": -35.0, "pitch": 25.0})
+            self.assertEqual(controller.preview_state("stepped-box"), {"yaw": -35.0, "pitch": 25.0})
+            self.assertEqual(controller.reset_preview("gatehouse"), {"yaw": -35.0, "pitch": 25.0})
 
     def test_screen_drag_maps_rightward_motion_to_negative_yaw(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -89,6 +100,10 @@ class FixtureDemoControllerTests(unittest.TestCase):
                         "message": "jsonschema dependency is required for structural validation",
                     }]},
                     {"id": "stepped-box", "status": "failed", "issues": [{
+                        "code": "SCHEMA_DEPENDENCY",
+                        "message": "jsonschema dependency is required for structural validation",
+                    }]},
+                    {"id": "gatehouse", "status": "failed", "issues": [{
                         "code": "SCHEMA_DEPENDENCY",
                         "message": "jsonschema dependency is required for structural validation",
                     }]},
@@ -116,10 +131,13 @@ class FixtureDemoTkSmokeTests(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory() as directory:
                 app = FixtureDemoApp(FixtureDemoController(directory), root)
+                self.assertEqual(list(app.canvases), ["compact-box", "stepped-box", "gatehouse"])
                 self.assertEqual(str(app.select_buttons["compact-box"]["state"]), "disabled")
                 self.assertEqual(str(app.select_buttons["stepped-box"]["state"]), "disabled")
+                self.assertEqual(str(app.select_buttons["gatehouse"]["state"]), "disabled")
                 self.assertEqual(str(app.reset_buttons["compact-box"]["state"]), "disabled")
                 self.assertEqual(str(app.reset_buttons["stepped-box"]["state"]), "disabled")
+                self.assertEqual(str(app.reset_buttons["gatehouse"]["state"]), "disabled")
         finally:
             root.destroy()
 

@@ -30,9 +30,9 @@ except ImportError:  # pragma: no cover - depends on Python distribution.
 _ROOT = Path(__file__).resolve().parents[1]
 _REQUEST = _ROOT / "examples" / "demo" / "tiny-red-tower.request.txt"
 _BRIEF = _ROOT / "examples" / "demo" / "tiny-red-tower.brief.json"
-_CANDIDATES = _ROOT / "examples" / "demo" / "candidate-set-boxes.json"
+_CANDIDATES = _ROOT / "examples" / "demo" / "candidate-set-towers-with-gatehouse.json"
 _PALETTE = _ROOT / "brick_builder" / "palettes" / "classic-core-v0.json"
-_CANDIDATE_IDS = ("compact-box", "stepped-box")
+_CANDIDATE_IDS = ("compact-box", "stepped-box", "gatehouse")
 _COLOURS = {0: "#202124", 1: "#0055bf", 2: "#237841", 4: "#c91a09", 14: "#f2cd37", 15: "#ffffff", 25: "#fe8a18"}
 _PREVIEW_WIDTH = 360
 _PREVIEW_HEIGHT = 260
@@ -72,7 +72,7 @@ class FixtureDemoController:
         return self.candidate_set_run is not None and bool(self.result and self.result.get("valid"))
 
     def create_tower_choices(self) -> dict[str, Any]:
-        """Create a fresh contained two-candidate tower run."""
+        """Create a fresh contained three-candidate tower run."""
         run = _next_directory(self.run_root, "tower-choices")
         result = replay_candidate_set(_REQUEST, _BRIEF, _CANDIDATES, run, _PALETTE)
         if not result.get("valid"):
@@ -218,7 +218,11 @@ class FixtureDemoApp:
         self.select_buttons: dict[str, Any] = {}
         self.reset_buttons: dict[str, Any] = {}
         self._drag_start: dict[str, tuple[float, float]] = {}
-        for candidate_id, label in (("compact-box", "Compact tower"), ("stepped-box", "Stepped tower")):
+        for candidate_id, label in (
+            ("compact-box", "Compact tower"),
+            ("stepped-box", "Stepped tower"),
+            ("gatehouse", "Gatehouse"),
+        ):
             panel = ttk.Frame(comparison)
             panel.pack(side="left", fill="both", expand=True, padx=4)
             ttk.Label(panel, text=label).pack()
