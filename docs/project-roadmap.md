@@ -58,10 +58,10 @@ checks known engineering constraints and preserves the full evidence trail.
 ## Current verified state
 
 The repository contains the deterministic foundation, bounded agent harnesses,
-and offline candidate, rendering, selection, and headless child-facing
-controller demonstrations. It does not yet demonstrate that a model
-understands an arbitrary creative request or performs a real child-facing
-local redesign on a LEGO candidate.
+and offline candidate, rendering, selection, headless child-facing controller,
+and critique-operation evaluation demonstrations. It does not yet demonstrate
+that a model understands an arbitrary creative request or performs a real
+child-facing local redesign on a LEGO candidate.
 
 Completed capabilities include:
 
@@ -1701,7 +1701,7 @@ Observed results (2026-09-02):
   are written; non-integral proposals remain rejected with the prior accepted
   concept and proposal available;
 - the restricted Pi adapter exposes the state machine through one named domain
-  tool with `noTools` still `builtin`; 121 Python tests and 21 Pi adapter tests
+  tool with `noTools` still `builtin`; 126 Python tests and 21 Pi adapter tests
   pass, with TypeScript type-checking, byte-compilation, and diff checks passing.
 
 ### MVP slice 1 headless child-facing controller
@@ -1760,7 +1760,7 @@ Still outstanding for Milestone 3E:
 - semantic critique of identity, silhouette, landmarks, proportions, symmetry,
   and accidental visual artifacts; the current critique reports deterministic
   render and geometry observations without claiming resemblance;
-- translation from critique findings into bounded visual repair operations that
+- broader semantic critique findings into bounded visual repair operations that
   preserve successful subassemblies where possible and revalidate each revision;
 - a small checked-in prompt evaluation set demonstrating improvement more often
   than regression across those visual repairs;
@@ -1770,9 +1770,62 @@ Still outstanding for Milestone 3E:
 Studio/UI inspection, physical-build evidence, and release/publication work are
 later Milestone 5 concerns and are not counted as unfinished 3E gates.
 
+### MVP slice 2: offline critique-to-operation evaluation
+
+Status: verified (2026-09-02).
+
+Add a deterministic, offline contract that turns the existing render and
+geometry observations into a small declared visual-operation proposal. Exercise
+it with a checked-in evaluation fixture containing a baseline candidate and one
+bounded revision. The operation must be explainable, applied through the
+existing selected-candidate redesign path, and followed by engineering
+validation; this slice measures traceability and validity, not resemblance
+quality.
+
+Acceptance gates:
+
+- a versioned critique-evaluation artifact records the prompt fixture,
+  baseline candidate, observation findings, declared operation, result, and
+  engineering validation outcome;
+- only a small allowlisted operation vocabulary is accepted, with explicit
+  parameters and actionable rejection for unknown, malformed, or unbounded
+  operations;
+- a valid operation produces a fresh proposal through the existing reversible
+  redesign contract, preserves the baseline evidence, and re-runs deterministic
+  validation before acceptance;
+- a failed operation or validation leaves the accepted baseline intact and
+  retains the rejection evidence;
+- repeated fixed-input evaluation is byte-identical and a small fixture reports
+  improvement/regression fields without presenting them as semantic truth.
+
+Explicit non-goals: live vision or model providers, automatic unbounded repair,
+semantic resemblance scoring, ranking, child preference testing, new LEGO
+geometry, UI/Tk work, Studio automation, export, purchasing, publishing, or
+physical-build claims.
+
+Observed results (2026-09-02):
+
+- a versioned `brick-builder.critique-operation-evaluation/v1` artifact records
+  the prompt fixture, selected baseline, deterministic critique observations,
+  declared operation, redesign proposal, engineering validation, and result;
+- only the bounded `recolor` and `increase-height` operations are accepted,
+  with explicit target and parameter validation; malformed, unknown, and
+  out-of-bound operations are rejected before redesign;
+- accepted operations flow through the selected-candidate redesign contract,
+  while failed bridge validation leaves the baseline accepted concept intact
+  and records actionable rejection diagnostics;
+- evaluation artifacts are canonically serializable and writable to an explicit
+  path; the checked-in fixture reports engineering-validity preservation or
+  loss and explicitly leaves semantic resemblance unevaluated;
+- 126 Python tests, 21 Pi adapter tests, TypeScript type-checking,
+  byte-compilation, and diff checks pass.
+
+This verifies the traceable operation boundary, not the full Milestone 3E
+visual-repair or evaluation gates.
+
 ### Next recommended task
 
-Add an offline critique-to-operation evaluation slice: use a small checked-in
-prompt/evaluation fixture and a bounded set of declared visual operations,
-without live vision or automatic unbounded repair. Keep engineering validity
-separate and require deterministic revalidation after each revision.
+Add a checked-in semantic-critique fixture for one supported candidate. Keep
+identity, silhouette, landmark, proportion, symmetry, and artifact findings
+explicit and separately reported from engineering validity; do not add live
+vision or claim resemblance truth until the evidence contract is defined.
