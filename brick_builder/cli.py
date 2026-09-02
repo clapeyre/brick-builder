@@ -20,6 +20,7 @@ from .legoization_bridge import legoize_accepted_box
 from .spatial_concept import SpatialConceptSession, write_session_artifacts
 from .stepped_legoization_bridge import legoize_accepted_stepped_boxes
 from .gatehouse_legoization_bridge import legoize_accepted_gatehouse
+from .selected_candidate_redesign import SelectedCandidateRedesignSession
 from .visual_critique import critique_candidate_set
 from .validation import ValidationError, repair_hint, validate_model
 
@@ -352,6 +353,46 @@ def select_composed_candidate_command(args):
     return {"valid": True, **receipt, "run_dir": str(args.run_dir)}
 
 
+def selected_candidate_redesign_command(args):
+    state_path = args.run_dir / "selected-candidate-redesign.json"
+    if args.operation == "start":
+        if args.candidate_set is None or args.candidate_id is None:
+            raise ValueError("--candidate-set and --candidate-id are required for start")
+        composition = json.loads(args.candidate_set.read_text(encoding="utf-8"))
+        session = SelectedCandidateRedesignSession(composition, args.candidate_id, load_palette(args.palette))
+    else:
+        session = SelectedCandidateRedesignSession.from_serialized(state_path.read_text(encoding="utf-8"))
+    operation_result = None
+    if args.operation == "focus":
+        session.set_focus(json.loads(args.point), args.radius, block_id=args.block_id)
+    elif args.operation == "lock":
+        session.lock_selected()
+    elif args.operation == "propose":
+        session.propose(args.instruction)
+    elif args.operation == "retry":
+        session.retry(args.instruction)
+    elif args.operation == "accept":
+        operation_result = session.accept()
+    elif args.operation == "undo":
+        session.undo()
+    elif args.operation != "start":
+        raise ValueError(f"unsupported selected-candidate redesign operation: {args.operation}")
+    args.run_dir.mkdir(parents=True, exist_ok=True)
+    session_snapshot = session.snapshot()
+    state_path.write_text(session.serialize() + "\n", encoding="utf-8", newline="\n")
+    (args.run_dir / "selected-candidate-bridge.json").write_text(
+        json.dumps(session.bridge_evidence, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        encoding="utf-8", newline="\n",
+    )
+    if isinstance(session.compiled_ldr, str):
+        (args.run_dir / "selected-final.ldr").write_text(session.compiled_ldr, encoding="utf-8", newline="\n")
+    valid = operation_result is None or operation_result.get("success") is True
+    output = {"valid": valid, "operation": args.operation, **session_snapshot, "state_path": str(state_path)}
+    if operation_result is not None:
+        output["operation_result"] = operation_result
+    return output
+
+
 def main(argv=None):
     if argv is None:
         import sys
@@ -359,7 +400,7 @@ def main(argv=None):
         argv = sys.argv[1:]
     if (
         len(argv) >= 2
-        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "demo-replay", "demo-candidate-set", "select-candidate", "spatial-concepts", "concept-redesign", "legoize-concept", "legoize-stepped-concept", "legoize-gatehouse-concept", "concept-candidate-set", "select-concept-candidate", "manifest", "-h", "--help"}
+        and argv[0] not in {"catalog", "validate", "analyze", "compile", "demo-generate", "demo-replay", "demo-candidate-set", "select-candidate", "spatial-concepts", "concept-redesign", "legoize-concept", "legoize-stepped-concept", "legoize-gatehouse-concept", "concept-candidate-set", "select-concept-candidate", "selected-candidate-redesign", "manifest", "-h", "--help"}
         and not argv[0].startswith("-")
     ):
         argv = ["compile", *argv]
@@ -473,6 +514,18 @@ def main(argv=None):
     concept_select_parser.add_argument("--candidate-id", required=True)
     concept_select_parser.add_argument("--run-dir", type=Path, required=True)
     concept_select_parser.set_defaults(handler=select_composed_candidate_command)
+
+    selected_redesign_parser = subparsers.add_parser("selected-candidate-redesign")
+    selected_redesign_parser.add_argument("operation", choices=("start", "focus", "lock", "propose", "retry", "accept", "undo"))
+    selected_redesign_parser.add_argument("--run-dir", type=Path, required=True)
+    selected_redesign_parser.add_argument("--candidate-set", type=Path)
+    selected_redesign_parser.add_argument("--candidate-id")
+    selected_redesign_parser.add_argument("--palette", type=Path, default=DEFAULT_PALETTE)
+    selected_redesign_parser.add_argument("--point", default="[0, 0, 0]")
+    selected_redesign_parser.add_argument("--radius", type=float, default=3.0)
+    selected_redesign_parser.add_argument("--block-id")
+    selected_redesign_parser.add_argument("--instruction")
+    selected_redesign_parser.set_defaults(handler=selected_candidate_redesign_command)
 
     args = parser.parse_args(argv)
     try:

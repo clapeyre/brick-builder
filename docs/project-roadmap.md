@@ -92,6 +92,9 @@ Completed capabilities include:
 - composed one-box, stepped-box, and gatehouse concept candidates with stable
   IDs, deterministic fixed-camera render evidence, and bounded visual
   observations for silhouette bounds, aspect, part visibility, and landmarks;
+- an explicitly selected composed candidate can enter the reversible local
+  redesign session, preserve provenance and hard locks, and produce a revised
+  LEGO assembly only after its original family bridge accepts the proposal;
 
 The Hermes experiment proves that an agent can write a candidate, receive
 deterministic feedback, repair invalid geometry, and compile a valid result. It
@@ -1650,11 +1653,60 @@ Observed results (2026-09-02):
   and 20 Pi adapter tests pass, with TypeScript type-checking, byte-compilation,
   and diff checks passing.
 
+### MVP slice 1 selected candidate local redesign
+
+Status: verified (2026-09-02).
+
+Bind one explicitly selected composed candidate to the existing reversible
+local-redesign contract. Preserve the selected candidate's canonical LEGO model
+and source spatial concept, expose focus, locks, bounded proposals, retry,
+accept, and exact undo, and re-run the candidate's deterministic LEGOization
+bridge before committing an accepted revised assembly. A bridge rejection must
+remain actionable and must not replace the current accepted assembly.
+
+Acceptance gates:
+
+- only a successful declared candidate ID from a successful candidate set can
+  start a redesign session, with the source candidate-set hash and model ID
+  retained in the session state;
+- the session reconstructs the editable spatial concept from the selected
+  candidate provenance and preserves hard locks, focus, bounded spillover,
+  retry semantics, and exact undo;
+- accepting a proposal runs the same one-box, stepped-box, or gatehouse bridge
+  against the proposed concept, writes revised LEGO evidence and `final.ldr`
+  only after deterministic validation succeeds, and leaves the prior accepted
+  state intact on rejection;
+- the CLI and restricted Pi path expose the session through named domain
+  operations under the caller run root, with `noTools: "builtin"` and no live
+  providers, shell, arbitrary filesystem access, ranking, or auto-selection;
+- existing candidate composition, rendering, visual critique, LEGOization,
+  local-redesign, replay, Pi, Hermes, and renderer behavior remains passing.
+
+Explicit non-goals: open-ended semantic repair, new LEGO geometry, automatic
+candidate selection, visual ranking, live providers, Studio automation,
+child-facing UI, child testing, purchasing, publishing, or export.
+
+Observed results (2026-09-02):
+
+- a successful candidate-set snapshot and explicit candidate ID start a
+  serializable redesign session retaining the candidate-set hash, selection
+  receipt, selected family, model ID, source concept, and canonical bridge
+  evidence;
+- focus, locks, bounded proposals, retry, accept, and exact undo are preserved
+  through the existing local-redesign contract, including locked-block and
+  spillover evidence;
+- accepted proposals are re-run through the original one-box, stepped-box, or
+  gatehouse bridge before the revised bridge evidence and `selected-final.ldr`
+  are written; non-integral proposals remain rejected with the prior accepted
+  concept and proposal available;
+- the restricted Pi adapter exposes the state machine through one named domain
+  tool with `noTools` still `builtin`; 114 Python tests and 21 Pi adapter tests
+  pass, with TypeScript type-checking, byte-compilation, and diff checks passing.
+
 ### Next recommended task
 
-Connect a selected composed candidate to the existing reversible local-redesign
-contract. Keep the first step offline and bounded: reconstruct the selected
-canonical model as an editable spatial concept, preserve hard locks and exact
-undo, and require deterministic validation before accepting a revised LEGO
-assembly. Do not add open-ended semantic repair, live providers, or child-facing
-UI until that full-chain contract is auditable.
+Build a minimal offline child-facing controller around the full composition,
+render, explicit selection, and selected-candidate redesign path. Keep the
+first UI step non-Tk/headless-testable with large candidate labels, bounded
+revision actions, visible proposal status, and undo/restart; defer live
+providers, Studio automation, export, and unsupervised child use.

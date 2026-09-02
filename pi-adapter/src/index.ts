@@ -6,11 +6,11 @@ import { Type } from "@sinclair/typebox";
 import { createAgentSession, defineTool, ModelRuntime, SessionManager, SettingsManager, type ToolDefinition, type CreateAgentSessionOptions } from "@earendil-works/pi-coding-agent";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall, type FauxResponseStep } from "@earendil-works/pi-ai";
 
-export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate" | "submit-brief" | "request-candidates" | "spatial-concepts" | "concept-redesign" | "legoize-concept" | "legoize-stepped-concept" | "legoize-gatehouse-concept" | "concept-candidate-set" | "select-concept-candidate";
+export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate" | "submit-brief" | "request-candidates" | "spatial-concepts" | "concept-redesign" | "legoize-concept" | "legoize-stepped-concept" | "legoize-gatehouse-concept" | "concept-candidate-set" | "select-concept-candidate" | "selected-candidate-redesign";
 export type RunnerOptions = { runRoot: string; python?: string; repositoryRoot?: string; signal?: AbortSignal };
 export type CommandResult = { valid: boolean; [key: string]: unknown };
 
-const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate", "submit-brief", "request-candidates", "spatial-concepts", "concept-redesign", "legoize-concept", "legoize-stepped-concept", "legoize-gatehouse-concept", "concept-candidate-set", "select-concept-candidate"] as const;
+const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate", "submit-brief", "request-candidates", "spatial-concepts", "concept-redesign", "legoize-concept", "legoize-stepped-concept", "legoize-gatehouse-concept", "concept-candidate-set", "select-concept-candidate", "selected-candidate-redesign"] as const;
 const here = dirname(fileURLToPath(import.meta.url));
 const defaultRepo = resolve(here, "../..");
 export const OFFLINE_CANDIDATE_FIXTURE = "towers-with-gatehouse" as const;
@@ -186,6 +186,20 @@ export class BrickBuilderAdapter {
     const selectionRoot = contained(this.runRoot, resolve(this.runRoot, "selection"));
     return invoke(["select-concept-candidate", "--candidate-set", candidateSet, "--candidate-id", candidateId, "--run-dir", selectionRoot], this.options);
   }
+
+  async selectedCandidateRedesign(operation: string, options: { candidateId?: string; point?: number[]; radius?: number; blockId?: string; instruction?: string } = {}): Promise<CommandResult> {
+    const args = ["selected-candidate-redesign", operation, "--run-dir", this.runRoot];
+    if (operation === "start") {
+      if (!options.candidateId) throw new Error("candidate_id is required for redesign start");
+      const candidateSet = contained(this.runRoot, resolve(this.runRoot, "candidate-set.json"));
+      args.push("--candidate-set", candidateSet, "--candidate-id", options.candidateId);
+    }
+    if (options.point) args.push("--point", JSON.stringify(options.point));
+    if (options.radius !== undefined) args.push("--radius", String(options.radius));
+    if (options.blockId) args.push("--block-id", options.blockId);
+    if (options.instruction) args.push("--instruction", options.instruction);
+    return invoke(args, this.options);
+  }
 }
 
 const modelSchema = Type.Object({ model: Type.Record(Type.String(), Type.Unknown()) });
@@ -195,6 +209,14 @@ const conceptRedesignSchema = Type.Object({
   operation: Type.Union(["start", "focus", "lock", "propose", "retry", "accept", "undo"].map((value) => Type.Literal(value)) as any),
   concept: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
   request: Type.Optional(Type.String()),
+  point: Type.Optional(Type.Array(Type.Number(), { minItems: 3, maxItems: 3 })),
+  radius: Type.Optional(Type.Number({ exclusiveMinimum: 0 })),
+  block_id: Type.Optional(Type.String()),
+  instruction: Type.Optional(Type.String()),
+});
+const selectedCandidateRedesignSchema = Type.Object({
+  operation: Type.Union(["start", "focus", "lock", "propose", "retry", "accept", "undo"].map((value) => Type.Literal(value)) as any),
+  candidate_id: Type.Optional(Type.String()),
   point: Type.Optional(Type.Array(Type.Number(), { minItems: 3, maxItems: 3 })),
   radius: Type.Optional(Type.Number({ exclusiveMinimum: 0 })),
   block_id: Type.Optional(Type.String()),
@@ -219,6 +241,7 @@ export function createBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefin
     tool("brick_legoize_gatehouse_concept", "LEGOize one accepted bounded two-tower gatehouse concept through the deterministic gatehouse bridge. Coverage and structural validity remain separate evidence.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeGatehouseConcept(p.concept, p.colour ?? 4)) }], details: {} })),
     tool("brick_concept_candidate_set", "Evaluate two or three accepted concepts through the supported deterministic families without ranking or automatic selection.", Type.Object({ request: Type.String(), concepts: Type.Array(Type.Record(Type.String(), Type.Unknown()), { minItems: 2, maxItems: 3 }) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.conceptCandidateSet(p.request, p.concepts)) }], details: {} })),
     tool("brick_select_concept_candidate", "Explicitly select one successful candidate by stable ID and write a provenance receipt.", Type.Object({ candidate_id: Type.String() }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.selectConceptCandidate(p.candidate_id)) }], details: {} })),
+    tool("brick_selected_candidate_redesign", "Focus, lock, propose, retry, accept, or undo a redesign rooted at an explicitly selected composed candidate; acceptance revalidates the original LEGOization family.", selectedCandidateRedesignSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.selectedCandidateRedesign(p.operation, { candidateId: p.candidate_id, point: p.point, radius: p.radius, blockId: p.block_id, instruction: p.instruction })) }], details: {} })),
   ];
 }
 
