@@ -1424,3 +1424,48 @@ Observed results (2026-09-02):
   `brick_concept_redesign` with no new built-ins or filesystem surface;
 - 91 Python tests and 15 Pi adapter tests pass, with TypeScript type-checking,
   byte-compilation, and diff checks passing.
+
+### MVP slice 1 LEGOization bridge: one aligned spatial box
+
+Status: verified (2026-09-02).
+
+Connect one accepted generic-box concept to the existing deterministic wall-box
+LEGOization path. The bridge supports exactly one axis-aligned box whose width,
+depth, and height are expressed in integral studs/plates within the existing
+small bounds. It records the source concept and conversion diagnostics before
+returning the existing LEGO assembly, coverage report, structural validation,
+and deterministic compiled output.
+
+Acceptance gates:
+
+- an accepted one-box concept converts to the existing wall-box scaffold with
+  an explicit, reproducible unit mapping and no model-controlled filesystem
+  path;
+- complete target coverage and structural validity remain separate reported
+  gates, and accepted output is byte-identical for repeated inputs;
+- unsupported multi-box, non-integral, non-grounded, or out-of-bounds concepts
+  return actionable diagnostics without presenting a partial LEGO assembly as
+  success;
+- a bounded offline adapter/session test can request the bridge through an
+  explicit domain operation while Pi retains `noTools: "builtin"`;
+- existing spatial concept, local redesign, LEGOization, renderer, Python,
+  Hermes, and Pi behavior remains passing.
+
+Explicit non-goals: arbitrary multi-box unions, semantic resemblance, shape
+invention, unrestricted dimensions, automatic repair, Studio automation, UI
+changes, live providers, child testing, purchasing, publishing, or export.
+
+Observed results (2026-09-02):
+
+- `legoize_accepted_box` maps exactly one centered, grounded generic box from
+  spatial stud/plate units into the existing wall-box LEGOization path and
+  retains the source concept, mapping, coverage, structural issues, and
+  deterministic LDraw text;
+- multi-box, non-integral, translated, ungrounded, out-of-bounds, and
+  unavailable-colour inputs return actionable rejection diagnostics without a
+  successful partial assembly;
+- `legoize-concept` writes contained bridge evidence and `final.ldr` only for
+  successful conversions, while `brick_legoize_concept` exposes the operation
+  through Pi's explicit domain-only tool surface;
+- 94 Python tests and 16 Pi adapter tests pass, with TypeScript type-checking,
+  byte-compilation, and diff checks passing.

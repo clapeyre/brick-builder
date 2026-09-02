@@ -6,11 +6,11 @@ import { Type } from "@sinclair/typebox";
 import { createAgentSession, defineTool, ModelRuntime, SessionManager, SettingsManager, type ToolDefinition, type CreateAgentSessionOptions } from "@earendil-works/pi-coding-agent";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall, type FauxResponseStep } from "@earendil-works/pi-ai";
 
-export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate" | "submit-brief" | "request-candidates" | "spatial-concepts" | "concept-redesign";
+export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate" | "submit-brief" | "request-candidates" | "spatial-concepts" | "concept-redesign" | "legoize-concept";
 export type RunnerOptions = { runRoot: string; python?: string; repositoryRoot?: string; signal?: AbortSignal };
 export type CommandResult = { valid: boolean; [key: string]: unknown };
 
-const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate", "submit-brief", "request-candidates", "spatial-concepts", "concept-redesign"] as const;
+const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate", "submit-brief", "request-candidates", "spatial-concepts", "concept-redesign", "legoize-concept"] as const;
 const here = dirname(fileURLToPath(import.meta.url));
 const defaultRepo = resolve(here, "../..");
 export const OFFLINE_CANDIDATE_FIXTURE = "towers-with-gatehouse" as const;
@@ -152,6 +152,12 @@ export class BrickBuilderAdapter {
     if (options.instruction) args.push("--instruction", options.instruction);
     return invoke(args, this.options);
   }
+
+  async legoizeConcept(concept: Record<string, unknown>, colour = 4): Promise<CommandResult> {
+    const conceptPath = contained(this.runRoot, resolve(this.runRoot, "accepted-concept-for-legoization.json"));
+    await writeFile(conceptPath, JSON.stringify(concept, null, 2) + "\n", "utf8");
+    return invoke(["legoize-concept", "--concept", conceptPath, "--run-dir", this.runRoot, "--colour", String(colour)], this.options);
+  }
 }
 
 const modelSchema = Type.Object({ model: Type.Record(Type.String(), Type.Unknown()) });
@@ -180,6 +186,7 @@ export function createBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefin
     tool("brick_request_candidates", "Request the declared offline candidate set for an accepted brief. No paths or ranking are model-controlled.", Type.Object({ family: Type.String() }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.requestCandidates(p.family)) }], details: {} })),
     tool("brick_spatial_concepts", "Submit a bounded model response for a natural-language spatial concept request. The raw request and fixed previews are retained under the run root.", Type.Object({ request: Type.String(), response: spatialResponseSchema }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.spatialConcepts(p.request, p.response)) }], details: {} })),
     tool("brick_concept_redesign", "Focus, lock, propose, retry, accept, or undo a local redesign of one accepted generic-box concept. State stays inside this run root.", conceptRedesignSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.conceptRedesign(p.operation, { concept: p.concept, requestText: p.request, point: p.point, radius: p.radius, blockId: p.block_id, instruction: p.instruction })) }], details: {} })),
+    tool("brick_legoize_concept", "LEGOize one accepted aligned generic-box concept through the deterministic one-box bridge. Coverage and structural validity remain separate evidence.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeConcept(p.concept, p.colour ?? 4)) }], details: {} })),
   ];
 }
 

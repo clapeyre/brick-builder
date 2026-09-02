@@ -16,7 +16,7 @@ async function adapter() {
 
 test("domain tools expose only the explicit Brick Builder operations", () => {
   const { api } = { api: new BrickBuilderAdapter({ runRoot: "C:/runs/test" }) };
-  assert.deepEqual(createBrickBuilderTools(api).map((tool) => tool.name), ["brick_catalog", "brick_validate", "brick_analyze", "brick_compile", "brick_demo_generate", "brick_demo_candidate_set", "brick_select_candidate", "brick_submit_brief", "brick_request_candidates", "brick_spatial_concepts", "brick_concept_redesign"]);
+  assert.deepEqual(createBrickBuilderTools(api).map((tool) => tool.name), ["brick_catalog", "brick_validate", "brick_analyze", "brick_compile", "brick_demo_generate", "brick_demo_candidate_set", "brick_select_candidate", "brick_submit_brief", "brick_request_candidates", "brick_spatial_concepts", "brick_concept_redesign", "brick_legoize_concept"]);
   assert.equal((createPiSessionOptions(api) as any).noTools, "builtin");
 });
 
@@ -54,6 +54,19 @@ test("accepted concept redesign stays contained and preserves locked geometry", 
   const undone = await api.conceptRedesign("undo");
   assert.equal(undone.valid, true);
   assert.ok(await stat(join(root, "concept-redesign.json")));
+});
+
+test("aligned accepted concept LEGOizes through the deterministic bridge", async () => {
+  const { root, api } = await adapter();
+  const concept = { id: "box-a", label: "A box", geometry: [
+    { ref: "box", center: [0, 2, 0], size: [4, 4, 2], color: "#2878b5" },
+  ], render: { camera: "three-quarter", geometry_refs: ["box"] } };
+  const result = await api.legoizeConcept(concept);
+  assert.equal(result.valid, true);
+  assert.equal((result.assembly as { coverage_complete: boolean }).coverage_complete, true);
+  assert.equal((result.assembly as { structural_valid: boolean }).structural_valid, true);
+  assert.ok(await stat(join(root, "legoization-bridge.json")));
+  assert.ok(await stat(join(root, "final.ldr")));
 });
 
 test("offline candidate replay and explicit selection stay contained and produce a receipt", async () => {
