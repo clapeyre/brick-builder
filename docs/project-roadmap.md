@@ -59,9 +59,9 @@ checks known engineering constraints and preserves the full evidence trail.
 
 The repository contains the deterministic foundation, bounded agent harnesses,
 and offline candidate, rendering, selection, headless child-facing controller,
-and critique-operation evaluation demonstrations. It does not yet demonstrate
-that a model understands an arbitrary creative request or performs a real
-child-facing local redesign on a LEGO candidate.
+critique-operation evaluation, and semantic-critique evidence demonstrations.
+It does not yet demonstrate that a model understands an arbitrary creative
+request or performs a real child-facing local redesign on a LEGO candidate.
 
 Completed capabilities include:
 
@@ -1701,7 +1701,7 @@ Observed results (2026-09-02):
   are written; non-integral proposals remain rejected with the prior accepted
   concept and proposal available;
 - the restricted Pi adapter exposes the state machine through one named domain
-  tool with `noTools` still `builtin`; 126 Python tests and 21 Pi adapter tests
+  tool with `noTools` still `builtin`; 130 Python tests and 21 Pi adapter tests
   pass, with TypeScript type-checking, byte-compilation, and diff checks passing.
 
 ### MVP slice 1 headless child-facing controller
@@ -1823,9 +1823,61 @@ Observed results (2026-09-02):
 This verifies the traceable operation boundary, not the full Milestone 3E
 visual-repair or evaluation gates.
 
+### MVP slice 3: offline semantic-critique evidence fixture
+
+Status: verified (2026-09-02).
+
+Add a deterministic fixture-driven contract that records semantic critique
+findings for one supported candidate against explicitly declared expectations.
+The fixture may describe the intended identity, silhouette, landmarks,
+proportions, symmetry, and accidental artifacts; the evaluator reports each
+dimension as observed, missing, or not assessed from existing render/geometry
+evidence. It must keep this evidence separate from deterministic engineering
+validity and must not collapse findings into a resemblance score.
+
+Acceptance gates:
+
+- a versioned artifact records the prompt fixture, candidate and render-evidence
+  references, declared expectations, per-dimension findings, and separate
+  engineering-validation evidence;
+- identity, silhouette, landmarks, proportions, symmetry, and accidental
+  artifacts have explicit bounded fields with actionable validation for
+  malformed or unsupported fixture data;
+- repeated fixed-input evaluation is byte-identical, preserves source evidence
+  references, and emits no rank, winner, preference, or resemblance score;
+- the checked-in fixture demonstrates both a satisfied and an unsatisfied
+  expectation without claiming that either is deterministic semantic truth;
+- the contract remains offline and consumes existing evidence only; no visual
+  provider, automatic repair, or candidate selection is introduced.
+
+Explicit non-goals: live vision or model providers, pixel-level perception,
+resemblance scoring, ranking, child preference testing, automatic repair,
+critique-to-operation dispatch, new LEGO geometry, UI/Tk work, Studio
+automation, export, purchasing, publishing, or physical-build claims.
+
+Observed results (2026-09-02):
+
+- a versioned `brick-builder.semantic-critique/v1` artifact records the prompt
+  fixture, selected candidate provenance, declared expectations, per-dimension
+  findings, render-evidence references, and separate engineering validation;
+- the checked-in fixture reports a satisfied identity and silhouette expectation,
+  an unsatisfied landmark expectation, and explicit `not-assessed` results for
+  unsupported symmetry and accidental-artifact observations;
+- malformed dimensions, invalid ranges, unsupported fixture keys, unsuccessful
+  candidates, and missing visual-critique evidence are rejected actionably;
+- repeated fixed-input evaluations are byte-identical, artifacts are writable
+  to an explicit path, and the result explicitly records that resemblance was
+  not evaluated or reduced to a score;
+- 130 Python tests, 21 Pi adapter tests, TypeScript type-checking,
+  byte-compilation, and diff checks pass.
+
+This verifies fixture-grounded semantic evidence, not semantic truth or a
+complete visual-repair evaluation.
+
 ### Next recommended task
 
-Add a checked-in semantic-critique fixture for one supported candidate. Keep
-identity, silhouette, landmark, proportion, symmetry, and artifact findings
-explicit and separately reported from engineering validity; do not add live
-vision or claim resemblance truth until the evidence contract is defined.
+Add a small checked-in prompt evaluation set covering at least one accepted and
+one rejected bounded revision. Compare engineering validity and declared
+fixture findings before and after each operation, report improvement versus
+regression without ranking candidates, and keep child preference evidence as a
+separate supervised evaluation concern.
