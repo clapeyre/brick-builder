@@ -77,12 +77,12 @@ class DemoReplayTests(unittest.TestCase):
     def test_candidate_set_preflights_malformed_and_duplicate_ids(self):
         with tempfile.TemporaryDirectory() as directory:
             config = Path(directory) / "candidates.json"
-            config.write_text(json.dumps({"candidates": [{"id": "bad/id", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")}, {"id": "ok", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")}] }))
+            config.write_text(json.dumps({"candidates": [{"id": "bad/id", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")}, {"id": "ok", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")}, {"id": "third", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")}] }))
             output = Path(directory) / "run"
             with self.assertRaises(ValueError):
                 replay_candidate_set(DEMO / "tiny-red-box.request.txt", DEMO / "tiny-red-box.brief.json", config, output, PALETTE)
             self.assertFalse(output.exists())
-            config.write_text(json.dumps({"candidates": [{"id": "same", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")}, {"id": "same", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")}] }))
+            config.write_text(json.dumps({"candidates": [{"id": "same", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")}, {"id": "same", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")}, {"id": "third", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")}] }))
             with self.assertRaises(ValueError):
                 replay_candidate_set(DEMO / "tiny-red-box.request.txt", DEMO / "tiny-red-box.brief.json", config, output, PALETTE)
             self.assertFalse(output.exists())
@@ -93,12 +93,24 @@ class DemoReplayTests(unittest.TestCase):
             config.write_text(json.dumps({"candidates": [
                 {"id": "good", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")},
                 {"id": "bad", "scaffold": str(ROOT / "examples/scaffolds/unsupported-depth-3.json")},
+                {"id": "third", "scaffold": str(ROOT / "examples/scaffolds/box-4x2x2.json")},
             ]}))
             result = replay_candidate_set(DEMO / "tiny-red-box.request.txt", DEMO / "tiny-red-box.brief.json", config, Path(directory) / "run", PALETTE)
             self.assertFalse(result["valid"])
-            self.assertEqual([item["status"] for item in result["candidate_index"]], ["valid", "failed"])
+            self.assertEqual([item["status"] for item in result["candidate_index"]], ["valid", "failed", "valid"])
             self.assertTrue((Path(result["run_dir"]) / "candidates/good/final.ldr").is_file())
             self.assertTrue((Path(result["run_dir"]) / "candidates/bad/manifest.json").is_file())
+
+    def test_gatehouse_candidate_replays_with_complete_render_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = replay_candidate_set(DEMO / "tiny-red-tower.request.txt", DEMO / "tiny-red-tower.brief.json", DEMO / "candidate-set-towers-with-gatehouse.json", Path(directory) / "run", PALETTE)
+            self.assertTrue(result["valid"])
+            root = Path(result["run_dir"])
+            gatehouse = root / "candidates/gatehouse"
+            self.assertEqual(result["candidate_index"][2]["model_id"], "gatehouse-6x2")
+            for name in ("manifest.json", "legoized.json", "final.ldr", "render-front.svg", "render-three-quarter.svg", "render-evidence.json"):
+                self.assertTrue((gatehouse / name).is_file(), name)
+            self.assertEqual(json.loads((gatehouse / "coverage.json").read_text())["uncovered"], [])
     def test_replay_writes_complete_deterministic_chain(self):
         with tempfile.TemporaryDirectory() as directory:
             first = replay_demo(DEMO / "tiny-red-box.request.txt", DEMO / "tiny-red-box.brief.json", ROOT / "examples/scaffolds/box-4x2x2.json", Path(directory) / "one", PALETTE)

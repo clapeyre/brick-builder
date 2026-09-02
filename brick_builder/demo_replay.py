@@ -17,7 +17,7 @@ from typing import Any
 from .compiler import compile_model
 from .generation import _analysis_document, _canonical_hash, finalize_manifest
 from .geometry import profiles_from_palette, transformed_profile, validate_geometry
-from .legoization import legoize_stepped_box, legoize_wall_box
+from .legoization import legoize_gatehouse, legoize_stepped_box, legoize_wall_box
 from .local_redesign import Block, project_box
 from .palette import load_palette
 from .validation import ValidationError, repair_hint, validate_model
@@ -95,12 +95,14 @@ def replay_demo(request_path: str | Path, brief_path: str | Path, scaffold_path:
         result = legoize_wall_box(legoizer_scaffold, palette)
     elif scaffold_kind == "stepped_box":
         result = legoize_stepped_box(legoizer_scaffold, palette)
+    elif scaffold_kind == "gatehouse":
+        result = legoize_gatehouse(legoizer_scaffold, palette)
     else:
         issue = {
             "code": "UNKNOWN_SCAFFOLD_KIND",
             "path": "scaffold.kind",
-            "message": f"unsupported scaffold kind {scaffold_kind!r}; expected 'wall_box' or 'stepped_box'",
-            "repair_hint": "Set scaffold.kind to 'wall_box' or 'stepped_box'.",
+            "message": f"unsupported scaffold kind {scaffold_kind!r}; expected 'wall_box', 'stepped_box', or 'gatehouse'",
+            "repair_hint": "Set scaffold.kind to 'wall_box', 'stepped_box', or 'gatehouse'.",
         }
         _write(root / "failure.json", {"valid": False, "issues": [issue]})
         manifest = finalize_manifest(root, outcome="failed", attempts=1, max_attempts=1, palette_path=palette_path, adapter="OfflineEndToEndReplay")
@@ -167,7 +169,7 @@ def replay_candidate_set(
     run_dir: str | Path,
     palette_path: str | Path,
 ) -> dict[str, Any]:
-    """Replay exactly two explicit offline candidates under one request/brief.
+    """Replay two or three explicit offline candidates under one request/brief.
 
     Candidate entries contain ``id`` and a scaffold path relative to the
     candidate-set fixture.  The preflight is intentionally complete before
@@ -178,8 +180,8 @@ def replay_candidate_set(
     brief = json.loads(brief_path.read_text(encoding="utf-8"))
     config = json.loads(candidates_path.read_text(encoding="utf-8"))
     candidates = config.get("candidates") if isinstance(config, dict) else None
-    if not isinstance(candidates, list) or len(candidates) != 2:
-        raise ValueError("candidate set must contain exactly two candidates")
+    if not isinstance(candidates, list) or len(candidates) not in {2, 3}:
+        raise ValueError("candidate set must contain exactly two or three candidates")
     prepared: list[tuple[str, Path]] = []
     ids: set[str] = set()
     for index, candidate in enumerate(candidates):

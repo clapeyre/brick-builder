@@ -564,6 +564,47 @@ Observed results (2026-09-02):
 - 81 Python tests, byte-compilation, and diff checks pass. No demo, selector,
   provider, Pi, Hermes, Studio, or rendering behavior changed.
 
+#### 3C seventh bounded slice: explicit gatehouse replay candidate
+
+Status: verified (2026-09-02).
+
+Admit the verified gatehouse only through an explicitly tagged offline replay
+fixture and a bounded three-candidate set. Dispatch remains solely on
+`scaffold.kind`; the candidate-set fixture, rather than creative text or
+shape inference, declares the third stable candidate.
+
+Acceptance gates:
+
+- a tagged gatehouse fixture replays to complete canonical validation, LDraw,
+  fixed renders, render evidence, and a manifest;
+- a checked-in three-candidate fixture produces compact box, stepped box, and
+  gatehouse children in stable declared order, all with their own auditable
+  artifacts and no selected/winner field;
+- the prior two-candidate tower fixture remains accepted for the existing local
+  selector, while unrecognized kinds retain their contained actionable failure
+  path;
+- all candidate-set cardinality remains deliberately bounded and explicit;
+  focused tests, the full suite, byte-compilation, and diff checks pass.
+
+Explicit non-goals: automatic candidate generation, ranking, selection changes,
+selector/UI changes, free-text understanding, arbitrary candidate counts,
+provider/Pi/Hermes work, Studio automation, and physical-build claims.
+
+Observed results (2026-09-02):
+
+- `replay_demo` now routes only an explicit `kind: "gatehouse"` fixture to
+  `legoize_gatehouse`; unknown kinds preserve the contained failure artifact
+  path and list the complete accepted-kind vocabulary;
+- the new `candidate-set-towers-with-gatehouse.json` fixture yields three
+  declared, valid children in order: compact box, stepped box, and gatehouse,
+  each with validation, LDraw, fixed SVG renders, render evidence, and a
+  manifest;
+- the existing two-choice fixture is unchanged and the replay contract accepts
+  only exactly two or exactly three candidates, preserving the current selector
+  without opening arbitrary candidate counts;
+- 82 Python tests, byte-compilation, and diff checks pass. No selector, Pi,
+  Hermes, provider, Studio, rendering, ranking, or selection behavior changed.
+
 #### 4A first bounded slice: explicit selected-candidate receipt
 
 Status: verified (2026-09-02).
