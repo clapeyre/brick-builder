@@ -2,9 +2,9 @@ import json
 import unittest
 from pathlib import Path
 
-from brick_builder import (SteppedBoxScaffold, WallBoxScaffold,
-                           legoize_stepped_box, legoize_wall_box, load_palette,
-                           validate_model)
+from brick_builder import (GatehouseScaffold, SteppedBoxScaffold, WallBoxScaffold,
+                           legoize_gatehouse, legoize_stepped_box,
+                           legoize_wall_box, load_palette, validate_model)
 
 
 ROOT = Path(__file__).parents[1]
@@ -115,6 +115,45 @@ class LEGOizationTests(unittest.TestCase):
         self.assertTrue(any("UNFILLED_TARGET_REGION" in item
                             for item in result.coverage.diagnostics))
         # Structural validity remains an independent gate from target coverage.
+        self.assertTrue(result.structural_valid)
+
+    def test_gatehouse_fixture_is_complete_deterministic_grounded_and_connected(self):
+        target = json.loads((ROOT / "examples" / "scaffolds" /
+                             "gatehouse-6x2.json").read_text())
+        first = legoize_gatehouse(target, self.palette)
+        second = legoize_gatehouse(target, self.palette)
+        self.assertTrue(first.valid)
+        self.assertEqual(first.model, second.model)
+        self.assertEqual(first.coverage.required, first.coverage.covered)
+        self.assertEqual(first.coverage.uncovered, ())
+        self.assertTrue(first.structural_valid)
+        self.assertEqual(first.structural_issues, ())
+        validate_model(first.model, self.palette)
+
+    def test_gatehouse_coverage_preserves_open_gateway(self):
+        result = legoize_gatehouse(GatehouseScaffold(6, 2, 2, 2, 1), self.palette)
+        # The bridge covers the full width at its three plate layers, but the
+        # two-stud gateway remains intentionally absent in lower layers.
+        self.assertEqual({x for x, layer, z in result.coverage.covered
+                          if layer == 0}, {0, 1, 4, 5})
+        self.assertEqual({x for x, layer, z in result.coverage.covered
+                          if layer == 6}, set(range(6)))
+        self.assertNotIn((2, 0, 0), result.coverage.required)
+        self.assertNotIn((3, 5, 1), result.coverage.required)
+
+    def test_gatehouse_rejects_invalid_geometry(self):
+        with self.assertRaisesRegex(ValueError, "exactly fill"):
+            legoize_gatehouse(GatehouseScaffold(7, 2, 2, 2, 1), self.palette)
+        with self.assertRaisesRegex(ValueError, "positive"):
+            legoize_gatehouse(GatehouseScaffold(6, 2, 2, 0, 1), self.palette)
+
+    def test_gatehouse_unsupported_depth_is_incomplete_not_successful(self):
+        result = legoize_gatehouse(GatehouseScaffold(6, 2, 2, 1, 1, depth_studs=3),
+                                   self.palette)
+        self.assertFalse(result.coverage.complete)
+        self.assertFalse(result.valid)
+        self.assertTrue(any("UNFILLED_TARGET_REGION" in item
+                            for item in result.coverage.diagnostics))
         self.assertTrue(result.structural_valid)
 
 

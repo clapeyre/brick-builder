@@ -45,6 +45,26 @@ class SteppedBoxScaffold:
 
 
 @dataclass(frozen=True)
+class GatehouseScaffold:
+    """Two square towers joined by a solid bridge above an open gateway.
+
+    The target is intentionally a small orthogonal composition: the two
+    towers occupy the full depth, while the bridge spans the complete width at
+    the towers' top.  The opening is therefore empty below the bridge and is
+    represented explicitly in coverage rather than filled with parts.
+    """
+
+    width_studs: int
+    tower_width_studs: int
+    opening_width_studs: int
+    tower_height_bricks: int
+    bridge_height_bricks: int
+    depth_studs: int = 2
+    model_id: str = "legoized-gatehouse"
+    name: str = "LEGOized gatehouse"
+
+
+@dataclass(frozen=True)
 class CoverageReport:
     required: tuple[tuple[int, int, int], ...]
     covered: tuple[tuple[int, int, int], ...]
@@ -314,6 +334,102 @@ def legoize_stepped_box(
     covered_cells = tuple(cell for cell in required if cell in covered)
     uncovered = tuple(cell for cell in required if cell not in covered)
     diagnostics = list(base.coverage.diagnostics) + list(upper.coverage.diagnostics)
+    model = {"schema_version": 1, "model_id": target.model_id,
+             "name": target.name, "parts": parts}
+    try:
+        validate_model(model, dict(palette))
+        issues: tuple[ValidationIssue, ...] = ()
+    except ValidationError as exc:
+        issues = exc.issues
+    return LEGOizationResult(
+        model, CoverageReport(required, covered_cells, uncovered, tuple(diagnostics)),
+        not issues, issues,
+    )
+
+
+def legoize_gatehouse(
+    scaffold: GatehouseScaffold | Mapping[str, Any],
+    palette: Mapping[str, Any],
+    *,
+    colour: int = 4,
+) -> LEGOizationResult:
+    """Build two towers and a top bridge with a deterministic open gateway.
+
+    Coverage is the union of the two lower tower footprints and the full-width
+    bridge footprint.  In particular, cells in the gateway below the bridge
+    are not required, so an intentional opening is distinct from an unfilled
+    target region.
+    """
+    if isinstance(scaffold, GatehouseScaffold):
+        target = scaffold
+    elif isinstance(scaffold, Mapping):
+        target = GatehouseScaffold(**{
+            key: value for key, value in scaffold.items() if key != "kind"
+        })
+    else:
+        raise TypeError("scaffold must be a GatehouseScaffold or mapping")
+
+    for field in ("width_studs", "tower_width_studs", "opening_width_studs",
+                  "tower_height_bricks", "bridge_height_bricks", "depth_studs"):
+        value = getattr(target, field)
+        if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+            raise ValueError(f"{field} must be a positive integer")
+    if 2 * target.tower_width_studs + target.opening_width_studs != target.width_studs:
+        raise ValueError("tower widths and opening width must exactly fill width_studs")
+    if not target.model_id or not target.name:
+        raise ValueError("model_id and name must be non-empty")
+
+    tower = WallBoxScaffold(target.tower_width_studs, target.tower_height_bricks,
+                            target.depth_studs)
+    bridge = WallBoxScaffold(target.width_studs, target.bridge_height_bricks,
+                             target.depth_studs)
+    left = legoize_wall_box(tower, palette, colour=colour)
+    right = legoize_wall_box(tower, palette, colour=colour)
+    top = legoize_wall_box(bridge, palette, colour=colour)
+    tower_layers = target.tower_height_bricks * 3
+    right_shift = target.tower_width_studs + target.opening_width_studs
+    parts: list[dict[str, Any]] = []
+    for source, prefix, x_shift, y_shift in (
+        (left, "gatehouse-left", 0, 0),
+        (right, "gatehouse-right", right_shift, 0),
+        (top, "gatehouse-bridge", 0, -tower_layers),
+    ):
+        for part in source.model["parts"]:
+            translated = dict(part)
+            translated["id"] = f"{prefix}-{part['id']}"
+            translated["translation_ldu"] = [
+                part["translation_ldu"][0] + x_shift * 20,
+                part["translation_ldu"][1] + y_shift * 8,
+                part["translation_ldu"][2],
+            ]
+            translated["matrix"] = list(part["matrix"])
+            parts.append(translated)
+
+    total_layers = (target.tower_height_bricks + target.bridge_height_bricks) * 3
+    required = tuple(
+        (x, layer, z)
+        for layer in range(total_layers)
+        for z in range(target.depth_studs)
+        for x in (
+            range(target.width_studs)
+            if layer >= tower_layers else
+            tuple(range(target.tower_width_studs)) + tuple(
+                range(right_shift, target.width_studs)
+            )
+        )
+    )
+    covered: set[tuple[int, int, int]] = set()
+    for report, x_shift, layer_shift in (
+        (left.coverage, 0, 0),
+        (right.coverage, right_shift, 0),
+        (top.coverage, 0, tower_layers),
+    ):
+        covered.update((x + x_shift, layer + layer_shift, z)
+                       for x, layer, z in report.covered)
+    covered_cells = tuple(cell for cell in required if cell in covered)
+    uncovered = tuple(cell for cell in required if cell not in covered)
+    diagnostics = (list(left.coverage.diagnostics) + list(right.coverage.diagnostics)
+                   + list(top.coverage.diagnostics))
     model = {"schema_version": 1, "model_id": target.model_id,
              "name": target.name, "parts": parts}
     try:

@@ -523,6 +523,47 @@ Observed results (2026-09-02):
 - 68 Python tests, byte-compilation, and diff checks pass. No Pi, Hermes, UI,
   provider, or renderer changes were made.
 
+#### 3C sixth bounded slice: deterministic two-tower gatehouse
+
+Status: verified (2026-09-02).
+
+Add one explicitly parameterized gatehouse scaffold to the deterministic
+LEGOization core: two equal rectangular towers with an open central gateway
+below one full-width top bridge. Keep the shape two studs deep and compose it
+only from the existing validated rectangular palette and stud-based
+connections. This establishes a deliberately small architectural silhouette
+before it is admitted to a demo or selector.
+
+Acceptance gates:
+
+- a checked-in six-stud-wide, two-stud-deep gatehouse fixture deterministically
+  produces a complete, grounded, structurally valid canonical assembly;
+- coverage treats the central lower gateway as intentionally absent while
+  requiring every occupied tower and bridge cell;
+- malformed tower/opening dimensions reject clearly, and unsupported depth
+  reports the current actionable incomplete-coverage diagnostic;
+- existing wall-box and stepped-box tilers remain behaviorally unchanged, with
+  focused tests, the full Python suite, byte-compilation, and diff checks
+  passing.
+
+Explicit non-goals: arbitrary spatial unions, doors, windows, arches, slopes,
+roofs, decorative details, automatic scaffold dispatch, demo/selector changes,
+Studio automation, live providers, and physical-build claims.
+
+Observed results (2026-09-02):
+
+- `GatehouseScaffold` composes two equal two-stud-deep tower volumes and a
+  full-width upper bridge through the existing rectangular LEGOizers; the
+  checked-in six-wide fixture is deterministic, complete, grounded, connected,
+  and structurally valid;
+- the canonical coverage target excludes the central lower gateway cells while
+  including their bridge-layer cells, so an opening cannot be mistaken for
+  accidental missing coverage;
+- malformed width decomposition rejects before model construction, while a
+  depth-three request preserves the existing actionable uncovered-region path;
+- 81 Python tests, byte-compilation, and diff checks pass. No demo, selector,
+  provider, Pi, Hermes, Studio, or rendering behavior changed.
+
 #### 4A first bounded slice: explicit selected-candidate receipt
 
 Status: verified (2026-09-02).

@@ -1,0 +1,11 @@
+{
+  "kind": "gatehouse",
+  "width_studs": 6,
+  "tower_width_studs": 2,
+  "opening_width_studs": 2,
+  "tower_height_bricks": 2,
+  "bridge_height_bricks": 1,
+  "depth_studs": 2,
+  "model_id": "gatehouse-6x2",
+  "name": "Small two-tower gatehouse"
+}
