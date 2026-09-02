@@ -529,6 +529,44 @@ Acceptance gates:
 - child preference is recorded as evaluation evidence, not treated as a
   deterministic truth label.
 
+#### 3E first bounded slice: offline render-evidence contract
+
+Status: verified (2026-09-02).
+
+Extend the checked-in offline demo replay with one deterministic
+`render-evidence.json` artifact. It must record the fixed camera identifiers,
+render file hashes, rendered part identifiers, and conservative projected
+evidence for each camera (visible polygon count and non-background bounds).
+The artifact is an auditable input to a later visual critique; it is not a
+claim that the model resembles its request.
+
+Acceptance gates:
+
+- repeated fixed-input demo replays produce byte-identical render evidence and
+  retain the existing fixed SVG render outputs;
+- the successful demo records evidence for front and three-quarter cameras,
+  with non-empty, distinct projections and the accepted model's part ids;
+- failed or unsupported scaffolds stop before render evidence and final LDraw,
+  retaining the current actionable failure path;
+- the manifest includes render evidence, while existing deterministic
+  LEGOization, validation, Pi, Hermes, and renderer behavior remain passing.
+
+Explicit non-goals: live model or vision-provider calls, semantic resemblance
+scores, automatic revision, new camera controls, UI changes, Studio automation,
+new LEGOization shapes, and child testing.
+
+Observed results (2026-09-02):
+
+- successful replays now write deterministic `render-evidence.json` entries
+  for the existing `front` and `three-quarter` SVG cameras, including each
+  file's SHA-256, rendered part ids, polygon count, and projected bounds;
+- repeated replays yield byte-identical evidence, and the manifest hashes the
+  new artifact alongside the unchanged render files;
+- unsupported scaffolds still stop before final LDraw, SVGs, or render
+  evidence; 60 Python tests, byte-compilation, and diff checks pass;
+- this is rendering provenance only, not a resemblance score or automated
+  visual critique.
+
 ### Milestone 4: child interaction and candidate selection
 
 Create a simple local interface only after the design loop produces worthwhile

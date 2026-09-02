@@ -23,6 +23,14 @@ from .validation import repair_hint, validate_model
 
 COLOURS = {0: "#202124", 1: "#0055bf", 2: "#237841", 4: "#c91a09", 14: "#f2cd37", 15: "#ffffff", 25: "#fe8a18"}
 
+# These are deliberately local, fixed replay cameras.  They are kept as
+# named data rather than accepting camera input so evidence can be compared
+# byte-for-byte across runs.
+RENDER_CAMERAS = {
+    "front": (0.0, 0.0),
+    "three-quarter": (-35.0, 25.0),
+}
+
 
 def _write(path: Path, value: Any) -> None:
     if isinstance(value, str):
@@ -31,19 +39,35 @@ def _write(path: Path, value: Any) -> None:
         path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
 
 
-def _render(model: dict[str, Any], palette: dict[str, Any], path: Path, yaw: float, pitch: float) -> None:
+def _render(model: dict[str, Any], palette: dict[str, Any], path: Path, yaw: float, pitch: float) -> dict[str, Any]:
     profiles = profiles_from_palette(palette)
-    faces: list[tuple[float, str, str]] = []
+    faces: list[tuple[float, str, tuple[tuple[float, float], ...], str]] = []
     for placement in model["parts"]:
         profile = profiles[placement["part"]]
         bbox, _, _ = transformed_profile(profile, placement)
         block = Block(placement["id"], ((bbox[0] + bbox[3]) / 2, (bbox[1] + bbox[4]) / 2, (bbox[2] + bbox[5]) / 2), (bbox[3] - bbox[0], bbox[4] - bbox[1], bbox[5] - bbox[2]), COLOURS.get(placement["colour"], "#888888"))
         for face in project_box(block, yaw=yaw, pitch=pitch, width=640, height=480, scale=3.2):
             points = " ".join(f"{x:.2f},{y:.2f}" for x, y in face["points"])
-            faces.append((face["depth"], placement["id"], f'<polygon points="{points}" fill="{face["color"]}" stroke="#26354a" stroke-width="1"/>'))
-    faces.sort(key=lambda item: (item[0], item[1], item[2]))
-    body = "\n".join(item[2] for item in faces)
+            faces.append((face["depth"], placement["id"], face["points"], f'<polygon points="{points}" fill="{face["color"]}" stroke="#26354a" stroke-width="1"/>'))
+    faces.sort(key=lambda item: (item[0], item[1], item[3]))
+    body = "\n".join(item[3] for item in faces)
     _write(path, f'<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480"><rect width="640" height="480" fill="#f6f7fb"/><g>{body}</g></svg>\n')
+    projected_points = [point for _depth, _part_id, face_points, _svg in faces for point in face_points]
+    # The SVG intentionally remains unchanged; this metadata is extracted
+    # from the same projected polygons used to write it.
+    if projected_points:
+        bounds: dict[str, list[float]] | None = {
+            "x": [round(min(point[0] for point in projected_points), 2), round(max(point[0] for point in projected_points), 2)],
+            "y": [round(min(point[1] for point in projected_points), 2), round(max(point[1] for point in projected_points), 2)],
+        }
+    else:
+        bounds = None
+    return {
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "rendered_part_ids": sorted({part_id for _depth, part_id, _face_points, _svg in faces}),
+        "visible_polygon_count": len(faces),
+        "non_background_bounds": bounds,
+    }
 
 
 def replay_demo(request_path: str | Path, brief_path: str | Path, scaffold_path: str | Path, run_dir: str | Path, palette_path: str | Path) -> dict[str, Any]:
@@ -76,7 +100,11 @@ def replay_demo(request_path: str | Path, brief_path: str | Path, scaffold_path:
     _write(root / "validation.json", {"valid": True, "issues": []})
     _write(root / "analysis.json", _analysis_document(analysis))
     output = compile_model(model, root / "final.ldr", palette)
-    _render(model, palette, root / "render-front.svg", 0, 0)
-    _render(model, palette, root / "render-three-quarter.svg", -35, 25)
+    render_evidence = {"schema_version": 1, "renders": []}
+    for camera_id, (yaw, pitch) in RENDER_CAMERAS.items():
+        filename = f"render-{camera_id}.svg"
+        metadata = _render(model, palette, root / filename, yaw, pitch)
+        render_evidence["renders"].append({"camera_id": camera_id, "file": filename, **metadata})
+    _write(root / "render-evidence.json", render_evidence)
     manifest = finalize_manifest(root, outcome="success", attempts=1, max_attempts=1, palette_path=palette_path, adapter="OfflineEndToEndReplay")
     return {"valid": True, "outcome": "success", "run_dir": str(root), "model_id": model["model_id"], "ldr_sha256": hashlib.sha256(output.read_bytes()).hexdigest(), "manifest": manifest}
