@@ -58,9 +58,10 @@ checks known engineering constraints and preserves the full evidence trail.
 ## Current verified state
 
 The repository contains the deterministic foundation, bounded agent harnesses,
-and offline candidate, rendering, and selection demonstrations. It does not
-yet demonstrate that a model understands an arbitrary creative request or
-performs a real child-facing local redesign on a LEGO candidate.
+and offline candidate, rendering, selection, and headless child-facing
+controller demonstrations. It does not yet demonstrate that a model
+understands an arbitrary creative request or performs a real child-facing
+local redesign on a LEGO candidate.
 
 Completed capabilities include:
 
@@ -1700,13 +1701,78 @@ Observed results (2026-09-02):
   are written; non-integral proposals remain rejected with the prior accepted
   concept and proposal available;
 - the restricted Pi adapter exposes the state machine through one named domain
-  tool with `noTools` still `builtin`; 114 Python tests and 21 Pi adapter tests
+  tool with `noTools` still `builtin`; 121 Python tests and 21 Pi adapter tests
   pass, with TypeScript type-checking, byte-compilation, and diff checks passing.
+
+### MVP slice 1 headless child-facing controller
+
+Status: verified (2026-09-02).
+
+Add a small non-Tk controller that composes the supported concept candidates,
+retains their fixed render/critique evidence, exposes large stable candidate
+cards, and binds an explicit selection to the selected-candidate redesign
+session. The controller reports proposal/acceptance state and supports restart
+without claiming a visual preference or ranking candidates.
+
+Acceptance gates:
+
+- a fresh controller run creates the existing contained candidate, render, and
+  critique artifacts and exposes stable candidate cards only after successful
+  composition;
+- selection is disabled before a successful candidate set, accepts only an
+  explicitly named successful ID, and retains the selection receipt and
+  candidate-set hash;
+- bounded focus, lock, propose, retry, accept, and undo actions are delegated
+  to the selected-candidate redesign contract, with proposal status and
+  actionable rejection visible in the controller snapshot;
+- restart clears active selection/proposal state without deleting source
+  evidence, and repeated fixed-input runs remain deterministic;
+- the controller is headless-testable and adds no live provider, shell,
+  arbitrary filesystem, ranking, automatic selection, Studio, export, or
+  unsupervised child-play capability.
+
+Explicit non-goals: Tk or production UI, voice input, semantic resemblance
+judgment, child preference evaluation, live providers, visual repair, new LEGO
+geometry, Studio automation, purchasing, publishing, or export.
+
+Observed results (2026-09-02):
+
+- the controller creates a fresh contained generation run with the existing
+  candidate-set, per-candidate bridge/final-model, fixed render, and critique
+  artifacts;
+- stable input-ordered candidate cards appear only after successful composition;
+  the controller exposes no ranking or automatic selection;
+- explicit selection starts the selected-candidate redesign session and retains
+  its receipt and candidate-set hash;
+- proposal, acceptance, rejection, retry, undo, and restart state are visible;
+  a failed bridge preserves the proposal and accepted state, while restart
+  preserves the source generation evidence;
+- 121 Python tests, 21 Pi adapter tests, TypeScript type-checking,
+  byte-compilation, and diff checks pass.
+
+### Milestone 3E remaining work
+
+Status: open; the completed slices provide the deterministic evidence boundary
+but not the remaining visual-critique gates.
+
+Still outstanding for Milestone 3E:
+
+- semantic critique of identity, silhouette, landmarks, proportions, symmetry,
+  and accidental visual artifacts; the current critique reports deterministic
+  render and geometry observations without claiming resemblance;
+- translation from critique findings into bounded visual repair operations that
+  preserve successful subassemblies where possible and revalidate each revision;
+- a small checked-in prompt evaluation set demonstrating improvement more often
+  than regression across those visual repairs;
+- supervised child-preference evidence, recorded as evaluation evidence rather
+  than deterministic truth.
+
+Studio/UI inspection, physical-build evidence, and release/publication work are
+later Milestone 5 concerns and are not counted as unfinished 3E gates.
 
 ### Next recommended task
 
-Build a minimal offline child-facing controller around the full composition,
-render, explicit selection, and selected-candidate redesign path. Keep the
-first UI step non-Tk/headless-testable with large candidate labels, bounded
-revision actions, visible proposal status, and undo/restart; defer live
-providers, Studio automation, export, and unsupervised child use.
+Add an offline critique-to-operation evaluation slice: use a small checked-in
+prompt/evaluation fixture and a bounded set of declared visual operations,
+without live vision or automatic unbounded repair. Keep engineering validity
+separate and require deterministic revalidation after each revision.
