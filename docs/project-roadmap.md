@@ -394,6 +394,47 @@ Observed results (2026-09-01):
 - 58 Python tests and Python byte-compilation pass. Pi, Hermes, the CLI, and
   the local renderer were not changed.
 
+#### 3C third bounded slice: centered two-tier stepped box
+
+Status: verified (2026-09-02).
+
+Extend the deterministic LEGOization bridge with exactly one new scaffold
+family: a grounded, two-stud-deep rectangular base with a centered, narrower
+rectangular upper tier. Each tier has an explicit positive brick height; the
+upper tier must fit on the base with an even stud-width difference so centering
+stays on the established 20 LDU grid. Reuse the existing rectangular brick and
+plate palette and retain coverage and structural validity as independent
+results.
+
+Acceptance gates:
+
+- a checked-in `4 x 2` base plus centered `2 x 2` upper-tier fixture produces
+  deterministic, complete, connected, grounded output using only supported
+  rectangular parts;
+- the report accounts for every base and upper-tier target cell in a shared
+  absolute cell space, while the existing one- and two-depth box behavior is
+  byte-for-byte unchanged;
+- invalid tier geometry and unsupported depth return actionable input or
+  uncovered-region failures; no partial output is reported as successful;
+- focused tests prove repeatability, centering, coverage/structure separation,
+  and preservation of the existing box cases.
+
+Explicit non-goals: arbitrary voxel or multi-branch scaffolds, overhangs,
+slopes, search optimization, inventory use, live providers, Pi/Hermes changes,
+Studio automation, visual critique, UI work, and child testing.
+
+Observed results (2026-09-02):
+
+- `SteppedBoxScaffold` and `legoize_stepped_box` cover a checked-in `4 x 2`
+  base plus centered `2 x 2` upper tier in one absolute `(x, layer, z)` cell
+  space; the assembled model is grounded, connected, and deterministic;
+- the upper tier starts on the base's top plate layer and its width is centered
+  on the established stud grid; malformed tier dimensions reject before a
+  candidate is produced, while unsupported depth remains incomplete with the
+  existing actionable uncovered-region diagnostic;
+- the original one- and two-depth box tiler was not changed. Focused tests,
+  the full Python suite, byte-compilation, and diff checks pass.
+
 ### Milestone 3D: Pi parity slice
 
 #### 3D first bounded slice: offline Pi domain-tool contract

@@ -2,7 +2,9 @@ import json
 import unittest
 from pathlib import Path
 
-from brick_builder import WallBoxScaffold, legoize_wall_box, load_palette, validate_model
+from brick_builder import (SteppedBoxScaffold, WallBoxScaffold,
+                           legoize_stepped_box, legoize_wall_box, load_palette,
+                           validate_model)
 
 
 ROOT = Path(__file__).parents[1]
@@ -80,6 +82,40 @@ class LEGOizationTests(unittest.TestCase):
         self.assertFalse(result.structural_valid)
         self.assertFalse(result.valid)
         self.assertTrue(any(issue.code == "DISCONNECTED_ASSEMBLY" for issue in result.structural_issues))
+
+    def test_centered_stepped_box_fixture_is_complete_repeatable_and_grounded(self):
+        target = json.loads((ROOT / "examples" / "scaffolds" /
+                             "stepped-box-4x2-base-2x2-upper.json").read_text())
+        first = legoize_stepped_box(target, self.palette)
+        second = legoize_stepped_box(target, self.palette)
+        self.assertTrue(first.valid)
+        self.assertEqual(first.model, second.model)
+        self.assertEqual(first.coverage.required, first.coverage.covered)
+        self.assertEqual(first.coverage.uncovered, ())
+        self.assertTrue(first.structural_valid)
+        validate_model(first.model, self.palette)
+        upper = [part for part in first.model["parts"] if part["id"].startswith("step-upper")]
+        self.assertTrue(upper)
+        # The 2-wide tier is centered in the 4-wide absolute target: x=1..2.
+        self.assertEqual({x for x, layer, z in first.coverage.covered if layer >= 3}, {1, 2})
+        self.assertTrue(all(part["translation_ldu"][1] <= -24 for part in upper))
+
+    def test_stepped_box_rejects_invalid_tier_geometry(self):
+        with self.assertRaisesRegex(ValueError, "even number"):
+            legoize_stepped_box(SteppedBoxScaffold(5, 2, 1, 1), self.palette)
+        with self.assertRaisesRegex(ValueError, "narrower"):
+            legoize_stepped_box(SteppedBoxScaffold(4, 4, 1, 1), self.palette)
+        with self.assertRaisesRegex(ValueError, "positive"):
+            legoize_stepped_box(SteppedBoxScaffold(4, 2, 0, 1), self.palette)
+
+    def test_stepped_box_unsupported_depth_is_incomplete_not_successful(self):
+        result = legoize_stepped_box(SteppedBoxScaffold(4, 2, 1, 1, depth_studs=3), self.palette)
+        self.assertFalse(result.coverage.complete)
+        self.assertFalse(result.valid)
+        self.assertTrue(any("UNFILLED_TARGET_REGION" in item
+                            for item in result.coverage.diagnostics))
+        # Structural validity remains an independent gate from target coverage.
+        self.assertTrue(result.structural_valid)
 
 
 if __name__ == "__main__":

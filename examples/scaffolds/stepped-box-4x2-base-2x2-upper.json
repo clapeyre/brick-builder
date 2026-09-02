@@ -1,0 +1,9 @@
+{
+  "base_width_studs": 4,
+  "upper_width_studs": 2,
+  "base_height_bricks": 1,
+  "upper_height_bricks": 1,
+  "depth_studs": 2,
+  "model_id": "stepped-box-4x2-base-2x2-upper",
+  "name": "Centered two-tier stepped box"
+}

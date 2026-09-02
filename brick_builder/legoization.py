@@ -28,6 +28,23 @@ class WallBoxScaffold:
 
 
 @dataclass(frozen=True)
+class SteppedBoxScaffold:
+    """A two-tier box with a centered, narrower upper tier.
+
+    Heights are deliberately expressed as positive brick counts. The upper
+    tier starts on the top of the base; both tiers use the same depth.
+    """
+
+    base_width_studs: int
+    upper_width_studs: int
+    base_height_bricks: int
+    upper_height_bricks: int
+    depth_studs: int = 2
+    model_id: str = "legoized-stepped-box"
+    name: str = "LEGOized stepped box"
+
+
+@dataclass(frozen=True)
 class CoverageReport:
     required: tuple[tuple[int, int, int], ...]
     covered: tuple[tuple[int, int, int], ...]
@@ -215,6 +232,95 @@ def legoize_wall_box(
     except ValidationError as exc:
         issues = exc.issues
     return LEGOizationResult(model, report, not issues, issues)
+
+
+def legoize_stepped_box(
+    scaffold: SteppedBoxScaffold | Mapping[str, Any],
+    palette: Mapping[str, Any],
+    *,
+    colour: int = 4,
+) -> LEGOizationResult:
+    """Build a centered, narrower upper tier on a rectangular base.
+
+    Coverage cells use one absolute ``(x, layer, z)`` space.  Unsupported
+    depths intentionally return the underlying partial candidate and its
+    uncovered-region diagnostic, while malformed tier geometry is rejected
+    before any model is produced.
+    """
+    if isinstance(scaffold, SteppedBoxScaffold):
+        target = scaffold
+    elif isinstance(scaffold, Mapping):
+        target = SteppedBoxScaffold(**scaffold)
+    else:
+        raise TypeError("scaffold must be a SteppedBoxScaffold or mapping")
+
+    for field in ("base_width_studs", "upper_width_studs", "base_height_bricks",
+                  "upper_height_bricks", "depth_studs"):
+        value = getattr(target, field)
+        if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+            raise ValueError(f"{field} must be a positive integer")
+    if target.upper_width_studs >= target.base_width_studs:
+        raise ValueError("upper_width_studs must be narrower than base_width_studs")
+    if (target.base_width_studs - target.upper_width_studs) % 2:
+        raise ValueError("base and upper widths must differ by an even number of studs")
+    if not target.model_id or not target.name:
+        raise ValueError("model_id and name must be non-empty")
+
+    offset = (target.base_width_studs - target.upper_width_studs) // 2
+    base = legoize_wall_box(
+        WallBoxScaffold(target.base_width_studs, target.base_height_bricks,
+                        target.depth_studs), palette, colour=colour)
+    upper = legoize_wall_box(
+        WallBoxScaffold(target.upper_width_studs, target.upper_height_bricks,
+                        target.depth_studs), palette, colour=colour)
+
+    base_layers = target.base_height_bricks * 3
+    parts: list[dict[str, Any]] = []
+    for source, prefix, x_shift, y_shift in (
+        (base, "step-base", 0, 0),
+        (upper, "step-upper", offset, -base_layers),
+    ):
+        for part in source.model["parts"]:
+            translated = dict(part)
+            translated["id"] = f"{prefix}-{part['id']}"
+            translated["translation_ldu"] = [
+                part["translation_ldu"][0] + x_shift * 20,
+                part["translation_ldu"][1] + y_shift * 8,
+                part["translation_ldu"][2],
+            ]
+            translated["matrix"] = list(part["matrix"])
+            parts.append(translated)
+
+    required = tuple(
+        (x, layer, z)
+        for layer in range((target.base_height_bricks + target.upper_height_bricks) * 3)
+        for z in range(target.depth_studs)
+        for x in (
+            range(target.base_width_studs)
+            if layer < base_layers
+            else range(offset, offset + target.upper_width_studs)
+        )
+    )
+    covered = set()
+    for report, x_shift, layer_shift in (
+        (base.coverage, 0, 0), (upper.coverage, offset, base_layers)
+    ):
+        covered.update((x + x_shift, layer + layer_shift, z)
+                       for x, layer, z in report.covered)
+    covered_cells = tuple(cell for cell in required if cell in covered)
+    uncovered = tuple(cell for cell in required if cell not in covered)
+    diagnostics = list(base.coverage.diagnostics) + list(upper.coverage.diagnostics)
+    model = {"schema_version": 1, "model_id": target.model_id,
+             "name": target.name, "parts": parts}
+    try:
+        validate_model(model, dict(palette))
+        issues: tuple[ValidationIssue, ...] = ()
+    except ValidationError as exc:
+        issues = exc.issues
+    return LEGOizationResult(
+        model, CoverageReport(required, covered_cells, uncovered, tuple(diagnostics)),
+        not issues, issues,
+    )
 
 
 # Explicitly named alias for callers that want to emphasize the input type.
