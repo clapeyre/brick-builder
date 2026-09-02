@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { BrickBuilderAdapter, createBrickBuilderTools, createPiSessionOptions, readRunArtifact, runBounded, runScriptedPiSession } from "../src/index.js";
 
-const repo = resolve(import.meta.dirname, "../../..");
+const repo = resolve(import.meta.dirname, "../..");
 const python = join(repo, ".venv", "Scripts", "python.exe");
 const model = JSON.parse(await readFile(join(repo, "examples/reference_models/rotated-one-stud.json"), "utf8"));
 
