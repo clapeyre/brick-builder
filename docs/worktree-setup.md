@@ -10,7 +10,7 @@ Run these commands from the worktree root in Windows PowerShell.
 
 ```powershell
 # Python deterministic core
-py -3 -m venv .venv
+python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .
 
 # Pi adapter
