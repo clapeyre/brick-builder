@@ -262,6 +262,43 @@ const selectedCandidateRedesignSchema = Type.Object({
   block_id: Type.Optional(Type.String()),
   instruction: Type.Optional(Type.String()),
 });
+function candidateCompositionTool(
+  adapter: BrickBuilderAdapter,
+  resultTransform: (result: CommandResult) => CommandResult = (result) => result,
+): ToolDefinition {
+  return defineTool({
+    name: "brick_concept_candidate_set",
+    label: "brick_concept_candidate_set",
+    description: "Evaluate exactly two or three generic axis-aligned box concepts. Use this exact JSON shape: each concept must be {id, label, geometry, render}; each geometry item must be {ref, center:[x,y,z], size:[width,height,depth], color:#rrggbb}; render must be {camera: front|side|top|three-quarter, geometry_refs:[refs in the same order as geometry]}. Preserve the user's ordinary-language request in request. This evaluates in input order and never ranks or selects.",
+    parameters: conceptCandidateSetSchema,
+    execute: async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(resultTransform(await adapter.conceptCandidateSet(p.request, p.concepts))) }], details: {} }),
+  });
+}
+
+function neutralCandidateCompositionResult(result: CommandResult): CommandResult {
+  const candidates = Array.isArray(result.candidates) ? result.candidates : [];
+  return {
+    valid: result.valid,
+    format: result.format,
+    request_text: result.request_text,
+    status: result.status,
+    candidate_set_hash: result.candidate_set_hash,
+    run_dir: result.run_dir,
+    candidates: candidates.map((candidate) => {
+      const value = candidate && typeof candidate === "object" ? candidate as Record<string, unknown> : {};
+      return {
+        id: value.id,
+        status: value.status,
+        diagnostics: value.diagnostics,
+        artifact_hashes: value.artifact_hashes,
+      };
+    }),
+    candidate_rendering: result.candidate_rendering && typeof result.candidate_rendering === "object"
+      ? { status: (result.candidate_rendering as Record<string, unknown>).status }
+      : undefined,
+  };
+}
+
 export function createBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefinition[] {
   const tool = (name: string, description: string, parameters: any, execute: (id: string, p: any) => Promise<any>) => defineTool({ name, label: name, description, parameters, execute });
   return [
@@ -279,16 +316,21 @@ export function createBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefin
     tool("brick_legoize_concept", "LEGOize one accepted aligned generic-box concept through the deterministic one-box bridge. Coverage and structural validity remain separate evidence; when omitted, the source concept colour is mapped through the supported palette.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeConcept(p.concept, p.colour)) }], details: {} })),
     tool("brick_legoize_stepped_concept", "LEGOize one accepted centered two-tier generic-box concept through the deterministic stepped bridge. Coverage and structural validity remain separate evidence; when omitted, the source concept colour is mapped through the supported palette.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeSteppedConcept(p.concept, p.colour)) }], details: {} })),
     tool("brick_legoize_gatehouse_concept", "LEGOize one accepted bounded two-tower gatehouse concept through the deterministic gatehouse bridge. Coverage and structural validity remain separate evidence; when omitted, the source concept colour is mapped through the supported palette.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeGatehouseConcept(p.concept, p.colour)) }], details: {} })),
-    tool("brick_concept_candidate_set", "Evaluate exactly two or three generic axis-aligned box concepts. Use this exact JSON shape: each concept must be {id, label, geometry, render}; each geometry item must be {ref, center:[x,y,z], size:[width,height,depth], color:#rrggbb}; render must be {camera: front|side|top|three-quarter, geometry_refs:[refs in the same order as geometry]}. Preserve the user's ordinary-language request in request. This evaluates in input order and never ranks or selects.", conceptCandidateSetSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.conceptCandidateSet(p.request, p.concepts)) }], details: {} })),
+    candidateCompositionTool(adapter),
     tool("brick_select_concept_candidate", "Explicitly select one successful candidate by stable ID and write a provenance receipt.", Type.Object({ candidate_id: Type.String() }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.selectConceptCandidate(p.candidate_id)) }], details: {} })),
     tool("brick_selected_candidate_redesign", "Focus, lock, propose, retry, accept, or undo a redesign rooted at an explicitly selected composed candidate; acceptance revalidates the original LEGOization family.", selectedCandidateRedesignSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.selectedCandidateRedesign(p.operation, { candidateId: p.candidate_id, point: p.point, radius: p.radius, blockId: p.block_id, instruction: p.instruction })) }], details: {} })),
   ];
 }
 
-export function createPiSessionOptions(adapter: BrickBuilderAdapter): CreateAgentSessionOptions {
+/** The only model-facing tool exposed during general live generation. */
+export function createLiveBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefinition[] {
+  return [candidateCompositionTool(adapter, neutralCandidateCompositionResult)];
+}
+
+export function createPiSessionOptions(adapter: BrickBuilderAdapter, tools: ToolDefinition[] = createBrickBuilderTools(adapter)): CreateAgentSessionOptions {
   // Pi's documented noTools mode suppresses its built-in filesystem and shell
   // tools while retaining the explicitly supplied custom domain tools.
-  return { customTools: createBrickBuilderTools(adapter), noTools: "builtin" } as CreateAgentSessionOptions;
+  return { customTools: tools, noTools: "builtin" } as CreateAgentSessionOptions;
 }
 
 export type ScriptedPiResponse =

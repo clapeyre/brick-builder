@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import {
   BrickBuilderAdapter,
-  createBrickBuilderTools,
+  createLiveBrickBuilderTools,
   createPiSessionOptions,
   type RunnerOptions,
 } from "./index.js";
@@ -33,7 +33,7 @@ export type LiveRunContext = {
   attempt: number;
   feedback: readonly unknown[];
   adapter: BrickBuilderAdapter;
-  domainTools: ReturnType<typeof createBrickBuilderTools>;
+  domainTools: ReturnType<typeof createLiveBrickBuilderTools>;
   sessionOptions: ReturnType<typeof createPiSessionOptions>;
   provider?: string;
   model?: string;
@@ -147,8 +147,8 @@ export async function runLiveConceptToCandidate(options: LiveRunOptions): Promis
     const attemptRoot = writeArtifactPath(runRoot, `attempts/attempt-${String(attempts).padStart(2, "0")}`);
     await mkdir(attemptRoot, { recursive: true });
     const adapter = new BrickBuilderAdapter({ runRoot: attemptRoot, isolateCandidateProposals: true, ...options.adapterOptions });
-    const domainTools = createBrickBuilderTools(adapter);
-    const sessionOptions = createPiSessionOptions(adapter);
+    const domainTools = createLiveBrickBuilderTools(adapter);
+    const sessionOptions = createPiSessionOptions(adapter, domainTools);
     const context: LiveRunContext = { request: options.request, runRoot, attemptRoot, attempt: attempts, feedback, adapter, domainTools, sessionOptions, provider: options.provider, model: options.model };
     try {
       const runner = options.runner ?? await options.sessionFactory!(context);
@@ -200,10 +200,10 @@ export async function readLiveRunConfig(path: string): Promise<LiveRunConfig> {
   return result;
 }
 
-const LIVE_SYSTEM_PROMPT = `You are the bounded Brick Builder concept proposer. Use only the explicitly supplied Brick Builder domain tool.
+export const LIVE_SYSTEM_PROMPT = `You are the bounded Brick Builder concept proposer. Use only the explicitly supplied neutral Brick Builder domain tool.
 Given the user's ordinary-language request, do exactly one of these:
 1. Ask one concise, actionable clarification question of at most 240 characters, and do not call a tool; or
-2. Call brick_concept_candidate_set with the original request and exactly two or three visibly distinct generic axis-aligned box concepts. Every concept must use this exact JSON shape: {"id":"stable-id","label":"short label","geometry":[{"ref":"box-ref","center":[0,1,0],"size":[4,2,4],"color":"#d71920"}],"render":{"camera":"three-quarter","geometry_refs":["box-ref"]}}. Use one to twelve geometry items, and keep geometry_refs in the same order. Use only integer centers and integer positive sizes on the stud/brick grid. For a valid one-box layout, put the box center at [0,height/2,0]. For a valid two-box layout, use a grounded base and a smaller centered upper box: base center y=base height/2, upper center y=base height+upper height/2, with matching x/z centers. For a valid three-box gatehouse layout, use equal grounded towers and one centered bridge: tower centers x=+/-((bridge width-tower width)/2), tower center y=tower height/2, bridge center y=tower height+bridge height/2, and matching z/depth. Keep dimensions within the small bounded range implied by deterministic feedback. Use only these supported source colors: black #202124, blue #2878b5, green #2e8b57, red #d71920, yellow #f2cd37, white #ffffff, orange #f5a623, or lime #8dd35f. If deterministic feedback rejects the proposal, repair it in the same session, at most twice. Do not select a candidate, rank candidates, access files or the shell, or invent tools. After a tool result, summarize its deterministic status and diagnostics without claiming resemblance or physical buildability.`;
+2. Call brick_concept_candidate_set with the original request and exactly two or three visibly distinct generic axis-aligned box concepts. Every concept must use this exact JSON shape: {"id":"stable-id","label":"short label","geometry":[{"ref":"box-ref","center":[0,1,0],"size":[4,2,4],"color":"#d71920"}],"render":{"camera":"three-quarter","geometry_refs":["box-ref"]}}. Use one to twelve geometry items, and keep geometry_refs in the same order. Use only integer centers and integer positive sizes on the stud/brick grid. Keep each layout grounded: place lower geometry on the ground plane, keep upper geometry centered over supporting geometry, and make touching faces align exactly on the grid. Keep dimensions within the small bounded range implied by deterministic feedback. Use only these supported source colors: black #202124, blue #2878b5, green #2e8b57, red #d71920, yellow #f2cd37, white #ffffff, orange #f5a623, or lime #8dd35f. If deterministic feedback rejects the proposal, repair it in the same session, at most twice. Do not select a candidate, rank candidates, access files or the shell, or invent tools. After a tool result, summarize its deterministic status and diagnostics without claiming resemblance or physical buildability.`;
 
 function textFromMessage(message: any): string {
   return message?.content?.filter((part: any) => part.type === "text").map((part: any) => part.text).join("") ?? "";

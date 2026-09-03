@@ -3,7 +3,7 @@ import { mkdtemp, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { readLiveRunConfig, runLiveConceptToCandidate, type LiveRunContext } from "../src/live_run.js";
+import { LIVE_SYSTEM_PROMPT, readLiveRunConfig, runLiveConceptToCandidate, type LiveRunContext } from "../src/live_run.js";
 import { BrickBuilderAdapter, createBrickBuilderTools } from "../src/index.js";
 
 async function root() { return mkdtemp(join(tmpdir(), "brick-builder-live-run-")); }
@@ -15,6 +15,12 @@ test("live candidate contract documents the JSON shape consumed by the Python co
   assert.match(tool.description, /geometry_refs/);
 });
 
+test("live prompt uses neutral layout guidance without internal family vocabulary", () => {
+  assert.doesNotMatch(LIVE_SYSTEM_PROMPT.toLowerCase(), /gatehouse|stepped-box|one-box|legoize|bridge/);
+  assert.match(LIVE_SYSTEM_PROMPT, /integer centers and integer positive sizes/);
+  assert.match(LIVE_SYSTEM_PROMPT, /touching faces align exactly on the grid/);
+});
+
 test("preserves the raw request and exposes only Brick Builder tools to the runner", async () => {
   const runRoot = await root();
   let seen: LiveRunContext | undefined;
@@ -22,7 +28,9 @@ test("preserves the raw request and exposes only Brick Builder tools to the runn
   assert.equal(result.status, "success");
   assert.equal(JSON.parse(await readFile(join(runRoot, "request.json"), "utf8")).request, "  Build a tiny red tower!  ");
   assert.equal(seen?.sessionOptions.noTools, "builtin");
-  assert.deepEqual(seen?.domainTools.map((tool) => tool.name), ["brick_catalog", "brick_validate", "brick_analyze", "brick_compile", "brick_demo_generate", "brick_demo_candidate_set", "brick_select_candidate", "brick_submit_brief", "brick_request_candidates", "brick_spatial_concepts", "brick_concept_redesign", "brick_legoize_concept", "brick_legoize_stepped_concept", "brick_legoize_gatehouse_concept", "brick_concept_candidate_set", "brick_select_concept_candidate", "brick_selected_candidate_redesign"]);
+  assert.deepEqual(seen?.domainTools.map((tool) => tool.name), ["brick_concept_candidate_set"]);
+  assert.deepEqual((seen?.sessionOptions.customTools as any[]).map((tool) => tool.name), ["brick_concept_candidate_set"]);
+  assert.doesNotMatch((seen?.domainTools[0].description ?? "").toLowerCase(), /gatehouse|stepped|one-box|bridge/);
   assert.equal(JSON.stringify(result).includes("credential"), false);
   await stat(join(runRoot, "trajectory.json"));
   await stat(join(runRoot, "live-run.json"));

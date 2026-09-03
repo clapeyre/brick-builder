@@ -4,7 +4,7 @@ import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
-import { BrickBuilderAdapter, createBrickBuilderTools, createPiSessionOptions, readRunArtifact, runBounded, runScriptedPiSession } from "../src/index.js";
+import { BrickBuilderAdapter, createBrickBuilderTools, createLiveBrickBuilderTools, createPiSessionOptions, readRunArtifact, runBounded, runScriptedPiSession } from "../src/index.js";
 
 const repo = existsSync(resolve(import.meta.dirname, "../../pyproject.toml"))
   ? resolve(import.meta.dirname, "../..")
@@ -38,6 +38,29 @@ test("the documented candidate shape succeeds through the live tool adapter", as
   assert.equal(result.valid, true);
   assert.deepEqual((result.candidates as Array<{ id: string }>).map((candidate) => candidate.id), ["tiny-box", "tiny-step"]);
   assert.ok(await stat(join(root, "candidate-set.json")));
+});
+
+test("live composition exposes neutral results while the raw artifact retains implementation evidence", async () => {
+  const root = await mkdtemp(join(tmpdir(), "brick-builder-pi-live-tool-"));
+  const api = new BrickBuilderAdapter({ runRoot: root, repositoryRoot: repo, python, isolateCandidateProposals: true });
+  const [tool] = createLiveBrickBuilderTools(api);
+  assert.equal(tool.name, "brick_concept_candidate_set");
+  assert.doesNotMatch(`${tool.description}`.toLowerCase(), /gatehouse|stepped|one-box|bridge/);
+  const concepts = [
+    { id: "box-a", label: "A box", geometry: [{ ref: "box", center: [0, 1, 0], size: [2, 2, 2], color: "#2e8b57" }], render: { camera: "three-quarter", geometry_refs: ["box"] } },
+    { id: "box-b", label: "A taller box", geometry: [{ ref: "box", center: [0, 2, 0], size: [2, 4, 2], color: "#2e8b57" }], render: { camera: "three-quarter", geometry_refs: ["box"] } },
+  ];
+  const response = await (tool.execute as any)("live-test", { request: "a green tower", concepts }, undefined, undefined, {});
+  const textPart = response.content.find((part: any): part is { type: "text"; text: string } => part.type === "text");
+  assert.ok(textPart);
+  const shown = JSON.parse(textPart.text);
+  const shownText = JSON.stringify(shown).toLowerCase();
+  assert.doesNotMatch(shownText, /family|model_id|gatehouse|stepped-box|one-box|"bridge"/);
+  assert.deepEqual(shown.candidates.map((candidate: any) => candidate.id), ["box-a", "box-b"]);
+  assert.match(shown.run_dir, /proposals[\\/]proposal-01$/);
+  const raw = JSON.parse(await readFile(join(root, "proposals", "proposal-01", "candidate-set.json"), "utf8"));
+  assert.equal(raw.candidates[0].family, "one-box");
+  assert.equal(raw.candidates[0].bridge.assembly.model.model_id, "box-a-legoized");
 });
 
 test("isolates repeated live proposals and resolves explicit selection through the final index", async () => {

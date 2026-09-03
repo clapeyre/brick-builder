@@ -76,6 +76,13 @@ LEGOization maps each source hex color to the active palette's LDraw code and
 records both values in the bridge evidence. Unsupported or mixed source colors
 are rejected explicitly rather than silently becoming Red.
 
+During general live generation, Pi receives only the neutral candidate-set tool.
+The model-facing result contains candidate IDs, status, diagnostics, hashes, and
+the contained proposal path, but not deterministic family, model, or bridge
+identifiers. Those details remain in the raw proposal artifact so explicit
+selection and redesign can use them without turning internal fixture families
+into the creative vocabulary.
+
 The live provider smoke is manual and adult-supervised. The automated contract
 remains the offline scripted Pi test suite; no credentials or network access are
 needed to run those tests.

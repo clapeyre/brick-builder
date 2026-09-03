@@ -2262,6 +2262,48 @@ Explicit non-goals: ranking or automatic selection, expanded geometry families,
 arbitrary colors outside the supported palette, inventory claims, purchasing,
 publishing, or child-facing UI changes.
 
+#### Delivery slice 1.5: keep internal bridge families out of general live generation
+
+Status: verified (2026-09-03); the neutral live-provider smoke and offline
+regression gates pass.
+
+Bound the next cleanup around the live model boundary. The general live concept
+proposer should receive one neutral candidate-composition tool, neutral geometry
+guidance, and neutral validation feedback. Existing one-box, stepped-box, and
+gatehouse bridges remain available to the deterministic compiler and offline
+fixture workflows, but their implementation names must not prime or constrain
+ordinary live requests.
+
+Acceptance gates:
+
+- the live Pi session exposes no family-specific bridge tools or family-specific
+  names in its system prompt;
+- the live candidate-composition result hides internal family/model identifiers
+  from the model while retaining full family-specific evidence on disk for
+  deterministic selection and redesign;
+- neutral live generation still supports two or three distinct candidates,
+  deterministic validation/repair, isolated artifacts, explicit selection, and
+  the existing no-ranking/no-automatic-selection boundary;
+- regression tests prove that fixture-only family vocabulary remains available
+  to offline workflows but is absent from the live model-facing tool surface.
+
+Explicit non-goals: redesigning the deterministic bridge families, expanding the
+part catalog or geometry vocabulary, adding semantic family classification,
+ranking, automatic selection, UI work, purchasing, publishing, or Studio
+automation.
+
+Implementation notes (2026-09-03): the live session now supplies only the
+neutral candidate-composition tool and uses neutral grounded/grid-alignment
+guidance. Its model-visible result is a projected status/diagnostic/hash view;
+the raw candidate-set artifact still retains family, model, bridge, and source
+evidence for explicit selection and redesign. The full tool surface and named
+family behavior remain available to offline fixture and deterministic tests. The
+elevated compiled Pi runtime suite passes all 35 tests, the Python suite passes
+143 tests with one expected skip, and a fresh adult-supervised “Make a tiny red
+lookout tower” smoke succeeded on attempt 2 without exposing the internal family
+vocabulary to the live tool surface. Its root selection index resolved to the
+nested successful proposal artifact.
+
 ### Delivery slice 2: live focused redesign of a selected concept
 
 Status: planned; start only after Delivery slice 1 passes its live smoke.
