@@ -2125,10 +2125,108 @@ Observed results (2026-09-03):
   boundary changed. The test classes remain unittest-compatible as an
   intentionally bounded migration step.
 
-### Next recommended task
+## MVP delivery reset: work that must happen before another child test
 
-Run the separate supervised child-preference evaluation with the six-year-old
-beta tester. Record which candidate or revision is preferred, the prompt and
-adult-supervision context, and any qualitative notes; treat those observations
-as evaluation evidence rather than deterministic labels. No code change is
-required until that evidence is available.
+The local-redesign probe has answered its narrow question: spatial focus, hard
+locks, disclosed spillover, retry, accept, and undo are directionally the right
+interaction model. It is not a child-ready product and must not receive further
+UI polish before the system can show a result genuinely tied to an ordinary
+language request.
+
+The immediate target is one adult-supervised, live, end-to-end vertical run:
+
+```text
+ordinary language request
+  -> live configured model proposes bounded spatial concepts
+  -> deterministic concept validation and LEGO candidate composition
+  -> visible candidate renders and explicit choice
+  -> contained evidence and LDraw output for adult inspection
+```
+
+This is a narrow proof that the central product promise works. It is not a
+claim that every request is understood, that the system is ready for unsupervised
+child use, or that the supported shapes are already broad enough for creatures
+and vehicles.
+
+### Delivery slice 1: adult-configured live concept-to-candidate run
+
+Status: planned (2026-09-03). This supersedes the previous recommendation to
+run a child-preference evaluation now.
+
+Use the existing restricted Pi agent and spatial-concept/candidate contracts
+with one real, adult-configured model provider. Given ordinary request text,
+the agent must either ask one concise clarification or use only explicit Brick
+Builder domain tools to submit two or three bounded generic-box concepts and
+compose them into supported LEGO candidates. The run must save its request,
+model/tool trajectory, concepts, validation feedback, candidate renders,
+selection-ready index, and LDraw artifacts under a fresh caller-owned run
+directory.
+
+Acceptance gates:
+
+- an adult can supply a provider/model configuration outside the repository and
+  launch one documented local command with ordinary request text;
+- one real provider session completes a contained run that records either an
+  actionable clarification or two/three valid, visibly distinct LEGO candidate
+  outputs derived from the model's submitted concepts;
+- malformed or unsupported concept proposals return deterministic feedback to
+  the same bounded session; exhaustion and provider failure retain usable
+  diagnostics and never present a successful candidate set;
+- Pi exposes only named Brick Builder domain tools, keeps `noTools: "builtin"`,
+  does not provide generic shell/filesystem access, and records no credentials
+  in artifacts, commits, logs, or documentation examples;
+- existing offline scripted sessions remain the automated test contract. The
+  live run is a manual adult-supervised smoke, not a CI dependency;
+- the result can be opened or inspected as LDraw by an adult, with engineering
+  validation reported separately from any claim of resemblance.
+
+Explicit non-goals: provider-specific credentials in source control, automatic
+purchase/publish/export, unrestricted geometry, universal semantic ontology,
+model ranking, automatic candidate selection, child-facing UI polish, child
+testing, Studio automation, or claims of physical buildability.
+
+### Delivery slice 2: live focused redesign of a selected concept
+
+Status: planned; start only after Delivery slice 1 passes its live smoke.
+
+Connect the same adult-configured live session to the existing selected-candidate
+redesign contract. After an adult explicitly chooses a candidate and supplies a
+spatial focus and optional locks, an ordinary-language local request must cause
+the model to submit one bounded replacement spatial proposal. The system must
+show before/after geometry, disclose spillover, preserve locks, re-LEGOize and
+validate on acceptance, and retain exact undo.
+
+Acceptance gates:
+
+- one real live session demonstrates candidate choice, focus, an
+  ordinary-language local request, a bounded visible proposal, accept or undo,
+  and a revalidated LDraw result;
+- locked geometry is never changed; any spillover is explicit; a rejected
+  bridge/validation result leaves the previous accepted candidate intact;
+- the live session records model/tool trajectory and diagnostics, while the
+  automated suite covers equivalent scripted success, rejection, exhaustion,
+  and provider-failure paths;
+- no generic Pi tools, credential persistence, whole-model silent rewrite,
+  ranking, purchasing, publishing, or Studio automation is introduced.
+
+### Delivery slice 3: minimal showcase surface and supervised child trial
+
+Status: planned; start only after Delivery slice 2 produces a result worth
+showing.
+
+Make the smallest local screen that invokes the proven live path and displays
+the resulting candidate cards plus the existing focus/lock/before-after/undo
+state. Do not add visual polish, voice, accounts, publishing, or broad settings.
+Use it for one supervised child session and record whether the child recognizes
+an idea, chooses a candidate, understands a focused revision, and enjoys the
+result. Treat the observations as product evidence, not deterministic labels.
+
+## Handoff rules for delivery slices
+
+Each delivery slice is implementation work. A Luna High orchestrator owns the
+slice end to end: it must first delegate one bounded implementation attempt to
+a Luna Medium subagent, independently review and verify the result, and report
+the exact live/manual evidence separately from automated evidence. The root
+integrator retains authority for commits, pushes, and any network/elevation
+request. Do not begin a later delivery slice while the prior slice is
+uncommitted, unverified, or lacks its stated live smoke evidence.
