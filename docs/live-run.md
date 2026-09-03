@@ -55,6 +55,13 @@ If Python is not on PATH, pass the approved project Python explicitly with
 compose into valid candidates, `clarification` for one concise question, and a
 nonzero exit code for provider failure or bounded exhaustion.
 
+The live candidate tool accepts the same JSON shape as the deterministic spatial
+concept parser: each concept has `id`, `label`, `geometry`, and `render`;
+geometry items have `ref`, three-number `center`, three-number `size`, and a
+`#rrggbb` `color`; and `render.geometry_refs` must list the geometry refs in
+order. The tool schema and live prompt include this contract so deterministic
+repair feedback is actionable.
+
 The run contains `request.json`, `trajectory.json`, `live-run.json`,
 `candidate-set.json`, `selection-ready.json`, candidate render evidence, and
 per-candidate `.ldr` files on success. `selection-ready.json` is an index only;

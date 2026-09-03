@@ -203,6 +203,25 @@ export class BrickBuilderAdapter {
 }
 
 const modelSchema = Type.Object({ model: Type.Record(Type.String(), Type.Unknown()) });
+const conceptGeometrySchema = Type.Object({
+  ref: Type.String({ minLength: 1, maxLength: 48 }),
+  center: Type.Array(Type.Number(), { minItems: 3, maxItems: 3 }),
+  size: Type.Array(Type.Number(), { minItems: 3, maxItems: 3 }),
+  color: Type.String({ pattern: "^#[0-9a-fA-F]{6}$" }),
+});
+const conceptSchema = Type.Object({
+  id: Type.String({ minLength: 1, maxLength: 48 }),
+  label: Type.String({ minLength: 1 }),
+  geometry: Type.Array(conceptGeometrySchema, { minItems: 1, maxItems: 12 }),
+  render: Type.Object({
+    camera: Type.Union(["front", "side", "top", "three-quarter"].map((value) => Type.Literal(value)) as any),
+    geometry_refs: Type.Array(Type.String({ minLength: 1, maxLength: 48 }), { minItems: 1, maxItems: 12 }),
+  }),
+});
+const conceptCandidateSetSchema = Type.Object({
+  request: Type.String({ minLength: 1 }),
+  concepts: Type.Array(conceptSchema, { minItems: 2, maxItems: 3 }),
+});
 const briefSchema = Type.Object({ format: Type.String(), intent: Type.String(), constraints: Type.Record(Type.String(), Type.Unknown()) });
 const spatialResponseSchema = Type.Record(Type.String(), Type.Unknown());
 const conceptRedesignSchema = Type.Object({
@@ -239,7 +258,7 @@ export function createBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefin
     tool("brick_legoize_concept", "LEGOize one accepted aligned generic-box concept through the deterministic one-box bridge. Coverage and structural validity remain separate evidence.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeConcept(p.concept, p.colour ?? 4)) }], details: {} })),
     tool("brick_legoize_stepped_concept", "LEGOize one accepted centered two-tier generic-box concept through the deterministic stepped bridge. Coverage and structural validity remain separate evidence.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeSteppedConcept(p.concept, p.colour ?? 4)) }], details: {} })),
     tool("brick_legoize_gatehouse_concept", "LEGOize one accepted bounded two-tower gatehouse concept through the deterministic gatehouse bridge. Coverage and structural validity remain separate evidence.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeGatehouseConcept(p.concept, p.colour ?? 4)) }], details: {} })),
-    tool("brick_concept_candidate_set", "Evaluate two or three accepted concepts through the supported deterministic families without ranking or automatic selection.", Type.Object({ request: Type.String(), concepts: Type.Array(Type.Record(Type.String(), Type.Unknown()), { minItems: 2, maxItems: 3 }) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.conceptCandidateSet(p.request, p.concepts)) }], details: {} })),
+    tool("brick_concept_candidate_set", "Evaluate exactly two or three generic axis-aligned box concepts. Use this exact JSON shape: each concept must be {id, label, geometry, render}; each geometry item must be {ref, center:[x,y,z], size:[width,height,depth], color:#rrggbb}; render must be {camera: front|side|top|three-quarter, geometry_refs:[refs in the same order as geometry]}. Preserve the user's ordinary-language request in request. This evaluates in input order and never ranks or selects.", conceptCandidateSetSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.conceptCandidateSet(p.request, p.concepts)) }], details: {} })),
     tool("brick_select_concept_candidate", "Explicitly select one successful candidate by stable ID and write a provenance receipt.", Type.Object({ candidate_id: Type.String() }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.selectConceptCandidate(p.candidate_id)) }], details: {} })),
     tool("brick_selected_candidate_redesign", "Focus, lock, propose, retry, accept, or undo a redesign rooted at an explicitly selected composed candidate; acceptance revalidates the original LEGOization family.", selectedCandidateRedesignSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.selectedCandidateRedesign(p.operation, { candidateId: p.candidate_id, point: p.point, radius: p.radius, blockId: p.block_id, instruction: p.instruction })) }], details: {} })),
   ];

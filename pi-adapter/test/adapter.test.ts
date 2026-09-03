@@ -19,8 +19,25 @@ async function adapter() {
 
 test("domain tools expose only the explicit Brick Builder operations", () => {
   const { api } = { api: new BrickBuilderAdapter({ runRoot: "C:/runs/test" }) };
-  assert.deepEqual(createBrickBuilderTools(api).map((tool) => tool.name), ["brick_catalog", "brick_validate", "brick_analyze", "brick_compile", "brick_demo_generate", "brick_demo_candidate_set", "brick_select_candidate", "brick_submit_brief", "brick_request_candidates", "brick_spatial_concepts", "brick_concept_redesign", "brick_legoize_concept", "brick_legoize_stepped_concept", "brick_legoize_gatehouse_concept", "brick_concept_candidate_set", "brick_select_concept_candidate", "brick_selected_candidate_redesign"]);
+  const tools = createBrickBuilderTools(api);
+  assert.deepEqual(tools.map((tool) => tool.name), ["brick_catalog", "brick_validate", "brick_analyze", "brick_compile", "brick_demo_generate", "brick_demo_candidate_set", "brick_select_candidate", "brick_submit_brief", "brick_request_candidates", "brick_spatial_concepts", "brick_concept_redesign", "brick_legoize_concept", "brick_legoize_stepped_concept", "brick_legoize_gatehouse_concept", "brick_concept_candidate_set", "brick_select_concept_candidate", "brick_selected_candidate_redesign"]);
+  const candidateTool = tools.find((tool) => tool.name === "brick_concept_candidate_set")!;
+  assert.match(candidateTool.description, /exact JSON shape/);
+  assert.equal((candidateTool.parameters as any).properties.concepts.items.properties.geometry.items.properties.center.maxItems, 3);
+  assert.equal((candidateTool.parameters as any).properties.concepts.items.properties.render.properties.geometry_refs.type, "array");
   assert.equal((createPiSessionOptions(api) as any).noTools, "builtin");
+});
+
+test("the documented candidate shape succeeds through the live tool adapter", async () => {
+  const { root, api } = await adapter();
+  const concepts = [
+    { id: "tiny-box", label: "Tiny box", geometry: [{ ref: "box", center: [0, 1, 0], size: [2, 2, 2], color: "#d71920" }], render: { camera: "three-quarter", geometry_refs: ["box"] } },
+    { id: "tiny-step", label: "Tiny step", geometry: [{ ref: "base", center: [0, 0.5, 0], size: [4, 1, 2], color: "#d71920" }, { ref: "upper", center: [0, 1.5, 0], size: [2, 1, 2], color: "#d71920" }], render: { camera: "three-quarter", geometry_refs: ["base", "upper"] } },
+  ];
+  const result = await api.conceptCandidateSet("Make a tiny red lookout tower", concepts);
+  assert.equal(result.valid, true);
+  assert.deepEqual((result.candidates as Array<{ id: string }>).map((candidate) => candidate.id), ["tiny-box", "tiny-step"]);
+  assert.ok(await stat(join(root, "candidate-set.json")));
 });
 
 test("spatial concept submission preserves the request and writes deterministic previews", async () => {

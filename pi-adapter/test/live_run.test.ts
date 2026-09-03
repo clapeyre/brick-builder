@@ -4,8 +4,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { readLiveRunConfig, runLiveConceptToCandidate, type LiveRunContext } from "../src/live_run.js";
+import { BrickBuilderAdapter, createBrickBuilderTools } from "../src/index.js";
 
 async function root() { return mkdtemp(join(tmpdir(), "brick-builder-live-run-")); }
+
+test("live candidate contract documents the JSON shape consumed by the Python concept parser", () => {
+  const tool = createBrickBuilderTools(new BrickBuilderAdapter({ runRoot: "C:/runs/test" })).find((item) => item.name === "brick_concept_candidate_set")!;
+  assert.match(tool.description, /id, label, geometry, render/);
+  assert.match(tool.description, /center:\[x,y,z\]/);
+  assert.match(tool.description, /geometry_refs/);
+});
 
 test("preserves the raw request and exposes only Brick Builder tools to the runner", async () => {
   const runRoot = await root();
