@@ -29,6 +29,9 @@ Every implementation task should read these files before making changes:
 4. `docs/design-conventions.md` and the active palette when geometry, parts,
    connections, or compilation are involved.
 
+Deferred cleanup and upgrade ideas are tracked in [`docs/backlog.md`](backlog.md);
+they are not ordered delivery milestones until promoted here.
+
 If a completed milestone changes the plan, update this document in the same
 commit. Do not rely on a previous agent's conversational context to carry a
 decision forward.
