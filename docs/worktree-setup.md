@@ -22,9 +22,9 @@ Pi command uses `pi-adapter/pnpm-lock.yaml`, including the pinned transitive Pi
 packages. Do not commit `.venv`, `.demo-venv`, `node_modules`, `dist`, or a
 pnpm package store.
 
-For the offline fixture demo, follow [demo-setup.md](demo-setup.md) instead:
-it intentionally uses a separate `.demo-venv` and the exact interpreter that
-launches the demo.
+For the offline fixture demo, follow [demo-setup.md](demo-setup.md): it uses a
+separate `.demo-venv` created from a desktop Python with working Tcl/Tk, and
+the exact interpreter that launches the demo.
 
 ## Classify verification results accurately
 
