@@ -77,6 +77,18 @@
   **Full access** in the Codex UI. Do not ask the owner to reproduce routine
   project commands manually in PowerShell merely because an elevation request
   is needed or rejected; report the request and outcome instead.
+- A Pi slice that changes or depends on real `AgentSession` behavior is not
+  verified until its compiled runtime suite has run in the same elevated
+  environment that can access pnpm's package store. Elevating only install or
+  type-checking is insufficient. The root integrator must request elevation for
+  the actual compile-and-test command before declaring the slice verified,
+  prepared, or ready for a manual provider smoke.
+- If that elevated runtime command is denied or cannot run, record the slice as
+  **verification incomplete** and stop later dependent slices. Report this to
+  the owner as a pending verification gate and the elevation outcome; do not
+  surface pnpm junction, virtual-store, PATH, or sandbox implementation detail
+  as an owner action item, and do not patch `node_modules` or change product
+  dependencies as a workaround.
 - If a subagent cannot push because its execution environment blocks GitHub or
   SSH access, it must not retry or diagnose credentials. It should report the
   prepared files, verification performed, and (if one exists) the commit hash
