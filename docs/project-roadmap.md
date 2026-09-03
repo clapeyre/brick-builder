@@ -2150,7 +2150,7 @@ and vehicles.
 
 ### Delivery slice 1: adult-configured live concept-to-candidate run
 
-Status: planned (2026-09-03). This supersedes the previous recommendation to
+Status: implementation prepared; manual live smoke pending (2026-09-03). This supersedes the previous recommendation to
 run a child-preference evaluation now.
 
 Use the existing restricted Pi agent and spatial-concept/candidate contracts
@@ -2184,6 +2184,14 @@ Explicit non-goals: provider-specific credentials in source control, automatic
 purchase/publish/export, unrestricted geometry, universal semantic ontology,
 model ranking, automatic candidate selection, child-facing UI polish, child
 testing, Studio automation, or claims of physical buildability.
+
+The checked-in implementation is documented in
+[`docs/live-run.md`](live-run.md). It uses an external provider configuration
+whose credential is named by an environment variable, creates a caller-owned
+Pi runtime with `noTools: "builtin"`, preserves the raw request and sanitized
+trajectory, and writes a selection-ready candidate index without selecting a
+candidate. A real provider smoke still requires an adult-supplied configuration
+and must be reported separately from the offline automated evidence.
 
 ### Delivery slice 2: live focused redesign of a selected concept
 

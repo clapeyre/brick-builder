@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "tsx --test test/*.test.ts"
+    "test": "tsx --test test/*.test.ts",
+    "live": "tsx src/live.ts"
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.84.4",
