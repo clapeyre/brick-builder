@@ -36,10 +36,12 @@ needed:
 pnpm live --config "C:\path\outside\brick-builder\provider.json" --run-root "C:\path\to\runs\live-001" "Make a tiny red lookout tower"
 ```
 
-The runner deliberately keeps `settings.json` run-local while reading the
-global `auth.json`: this preserves the Brick Builder-only tool boundary even if
-global Pi settings enable other tools or extensions. To use a non-default auth
-file, add `"authPath": "C:\\path\\outside\\auth.json"` to the provider config.
+The runner reads both the global `auth.json` and `settings.json`, while still
+explicitly allowlisting only the Brick Builder domain tools for this session.
+Global settings therefore control Pi behavior such as model preferences, but
+cannot enable shell, filesystem, or unrelated extension tools here. To use a
+non-default auth file, add `"authPath": "C:\\path\\outside\\auth.json"` to the
+provider config.
 
 If Python is not on PATH, pass the approved project Python explicitly with
 `--python`. The command returns status `success` when two or three concepts

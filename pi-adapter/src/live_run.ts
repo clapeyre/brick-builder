@@ -256,10 +256,11 @@ async function runConfiguredPiSession(context: LiveRunContext, config: LiveRunCo
     ...context.sessionOptions,
     cwd: context.runRoot,
     agentDir: context.runRoot,
+    tools: context.domainTools.map((tool) => tool.name),
     modelRuntime: runtime,
     model,
     sessionManager: SessionManager.inMemory(context.runRoot),
-    settingsManager: SettingsManager.create(context.runRoot, context.runRoot),
+    settingsManager: SettingsManager.create(context.runRoot, join(homedir(), ".pi", "agent")),
   };
   const sessionResult = await createAgentSession(sessionOptions);
   const events: unknown[] = [];
