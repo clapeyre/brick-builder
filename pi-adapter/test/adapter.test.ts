@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { BrickBuilderAdapter, createBrickBuilderTools, createPiSessionOptions, readRunArtifact, runBounded, runScriptedPiSession } from "../src/index.js";
 
-const repo = resolve(import.meta.dirname, "../..");
+const repo = existsSync(resolve(import.meta.dirname, "../../pyproject.toml"))
+  ? resolve(import.meta.dirname, "../..")
+  : resolve(import.meta.dirname, "../../..");
 const python = join(repo, ".venv", "Scripts", "python.exe");
 const model = JSON.parse(await readFile(join(repo, "examples/reference_models/rotated-one-stud.json"), "utf8"));
 

@@ -163,7 +163,7 @@ export async function runLiveConceptToCandidate(options: LiveRunOptions): Promis
   }
   const resolved = final ?? { status: "failure" as const, message: `bounded session exhausted after ${maxAttempts} attempts` };
   const status: LiveRunStatus = !final || (resolved.status === "failure" && attempts >= maxAttempts) ? "exhaustion" : resolved.status;
-  const message = outcomeMessage(resolved) ?? (status === "exhaustion" ? `bounded session exhausted after ${maxAttempts} attempts` : undefined);
+  const message = status === "exhaustion" ? `bounded session exhausted after ${maxAttempts} attempts` : outcomeMessage(resolved);
 
   await writeFile(trajectoryPath, JSON.stringify(trajectory, null, 2) + "\n", "utf8");
   const outcome: LiveRunOutcome = { status, request: options.request, attempts, message, provider: safeLabel(options.provider), model: safeLabel(options.model), artifactPath };
