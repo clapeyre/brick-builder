@@ -50,3 +50,53 @@ class TestCandidateComposition:
         ], PALETTE)
         assert not (unsupported.success)
         assert "UNSUPPORTED_SHAPE" in unsupported.candidates[0]["diagnostics"][0]
+
+    def test_rejects_duplicate_geometry_independent_of_identity_metadata_and_order(self):
+        first = GenericBoxConcept(
+            "green-compact-beam",
+            "Compact beam",
+            (
+                Block("beam", (0, 0.5, 0), (4, 1, 2), "#2e8b57"),
+                Block("pier-b", (0, 1.5, 0), (2, 1, 2), "#2e8b57"),
+            ),
+            {"camera": "front", "geometry_refs": ["beam", "pier-b"]},
+        )
+        duplicate = GenericBoxConcept(
+            "green-wide-deck",
+            "Wide deck",
+            (
+                Block("support", (0.0, 1.5, 0.0), (2.0, 1.0, 2.0), "#d71920"),
+                Block("deck", (0.0, 0.5, 0.0), (4.0, 1.0, 2.0), "#d71920"),
+            ),
+            {"camera": "top", "geometry_refs": ["support", "deck"]},
+        )
+        distinct = concept("green-two-pier", ("deck", (0, 1, 0), (2, 2, 2), "#2e8b57"))
+
+        result = compose_candidate_set("A small green beam bridge", [first, duplicate, distinct], PALETTE)
+
+        assert result.status == "rejected"
+        assert [item["id"] for item in result.candidates] == [
+            "green-compact-beam", "green-wide-deck", "green-two-pier"
+        ]
+        assert result.candidates[0]["status"] == "success"
+        assert result.candidates[1]["status"] == "failed"
+        assert result.candidates[1]["geometry_hash"] == result.candidates[0]["geometry_hash"]
+        assert "DUPLICATE_GEOMETRY:" in result.candidates[1]["diagnostics"][0]
+        assert "geometry hash" in result.candidates[1]["diagnostics"][0]
+        assert result.candidates[2]["status"] == "success"
+        assert "bridge" not in result.candidates[1]
+
+    def test_geometry_hash_is_deterministic_and_does_not_select_or_rank(self):
+        concepts = [
+            concept("first", ("box", (0, 1, 0), (2, 2, 2), "#2878b5")),
+            concept("second", ("box", (0, 1, 0), (4, 2, 2), "#2878b5")),
+        ]
+        first = compose_candidate_set("same request", concepts, PALETTE)
+        second = compose_candidate_set("same request", concepts, PALETTE)
+
+        assert first.candidate_set_hash == second.candidate_set_hash
+        assert [item["id"] for item in first.candidates] == ["first", "second"]
+        assert [item["geometry_hash"] for item in first.candidates] == [
+            item["geometry_hash"] for item in second.candidates
+        ]
+        assert "selected" not in first.snapshot()

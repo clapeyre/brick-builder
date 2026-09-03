@@ -36,6 +36,30 @@ def _hash(value: Any) -> str:
     return hashlib.sha256(_canonical(value).encode("utf-8")).hexdigest()
 
 
+def _normalized_number(value: Any) -> int | float:
+    """Canonicalize equivalent numeric values before geometry hashing."""
+    number = float(value)
+    if number.is_integer():
+        return int(number)
+    return number
+
+
+def _geometry_key(concept: GenericBoxConcept) -> tuple[tuple[tuple[int | float, ...], tuple[int | float, ...]], ...]:
+    """Return geometry only, independent of names, refs, cameras, and order."""
+    boxes = (
+        (
+            tuple(_normalized_number(value) for value in box.center),
+            tuple(_normalized_number(value) for value in box.size),
+        )
+        for box in concept.boxes
+    )
+    return tuple(sorted(boxes))
+
+
+def _geometry_hash(concept: GenericBoxConcept) -> str:
+    return _hash({"boxes": _geometry_key(concept)})
+
+
 def _source(value: Any) -> dict[str, Any]:
     if isinstance(value, GenericBoxConcept):
         try:
@@ -107,6 +131,7 @@ def compose_candidate_set(
     records: list[dict[str, Any]] = []
     ids: set[str] = set()
     duplicate = False
+    geometries: dict[str, tuple[int, str | None]] = {}
     for index, concept in enumerate(concepts, start=1):
         if not isinstance(concept, GenericBoxConcept):
             _id, record = _malformed(concept, index)
@@ -115,6 +140,19 @@ def compose_candidate_set(
         source = _source(concept)
         candidate_id = concept.id
         diagnostics: list[str] = []
+        geometry_hash = _geometry_hash(concept)
+        previous_geometry = geometries.get(geometry_hash)
+        if previous_geometry is None:
+            geometries[geometry_hash] = (index, candidate_id if isinstance(candidate_id, str) else None)
+        else:
+            previous_index, previous_id = previous_geometry
+            previous_label = previous_id if previous_id is not None else f"candidate {previous_index}"
+            diagnostics.append(
+                "DUPLICATE_GEOMETRY: candidate "
+                f"{candidate_id!r} repeats normalized box geometry from {previous_label!r} "
+                f"(geometry hash {geometry_hash[:16]}); change a box center or size"
+            )
+            duplicate = True
         if not isinstance(candidate_id, str) or not _ID.fullmatch(candidate_id):
             diagnostics.append("MALFORMED_ID: candidate id must contain only letters, numbers, '_' or '-'")
         elif candidate_id in ids:
@@ -132,7 +170,20 @@ def compose_candidate_set(
                 "status": "failed",
                 "model_id": None,
                 "diagnostics": tuple(diagnostics),
-                "artifact_hashes": {"source": _hash(source), "evidence": _hash({"id": candidate_id, "diagnostics": diagnostics})},
+                "geometry_hash": geometry_hash,
+                "artifact_hashes": {"source": _hash(source), "evidence": _hash({"id": candidate_id, "diagnostics": diagnostics, "geometry_hash": geometry_hash})},
+            })
+            continue
+        if any(item.startswith("DUPLICATE_GEOMETRY:") for item in diagnostics):
+            records.append({
+                "id": candidate_id,
+                "source_concept": source,
+                "family": family[0],
+                "status": "failed",
+                "model_id": None,
+                "diagnostics": tuple(diagnostics),
+                "geometry_hash": geometry_hash,
+                "artifact_hashes": {"source": _hash(source), "evidence": _hash({"id": candidate_id, "diagnostics": diagnostics, "geometry_hash": geometry_hash})},
             })
             continue
         try:
@@ -150,13 +201,14 @@ def compose_candidate_set(
                 artifact_hashes["final.ldr"] = hashlib.sha256(bridge.compiled_ldr.encode("utf-8")).hexdigest()
             records.append({"id": candidate_id, "source_concept": source, "family": family[0],
                             "status": "success" if successful else "failed", "model_id": model_id,
-                            "diagnostics": tuple(diagnostic_values), "artifact_hashes": artifact_hashes,
+                            "diagnostics": tuple(diagnostic_values), "geometry_hash": geometry_hash, "artifact_hashes": artifact_hashes,
                             "bridge": bridge_snapshot})
         except Exception as exc:
             records.append({"id": candidate_id, "source_concept": source, "family": family[0],
                             "status": "failed", "model_id": None,
                             "diagnostics": (f"BRIDGE_ERROR: {type(exc).__name__}: {exc}",),
-                            "artifact_hashes": {"source": _hash(source), "evidence": _hash({"id": candidate_id, "error": str(exc)})}})
+                            "geometry_hash": geometry_hash,
+                            "artifact_hashes": {"source": _hash(source), "evidence": _hash({"id": candidate_id, "error": str(exc), "geometry_hash": geometry_hash})}})
 
     if duplicate:
         status = "rejected"

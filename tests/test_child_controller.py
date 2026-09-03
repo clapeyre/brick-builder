@@ -40,7 +40,7 @@ class TestChildController:
     def test_explicit_selection_retains_receipt_and_hash(self):
         with tempfile.TemporaryDirectory() as directory:
             controller = self.make_controller(directory)
-            controller.generate("request", [concept("first"), concept("second")])
+            controller.generate("request", [concept("first"), concept("second", 4)])
             receipt = controller.select("second")
             state = controller.snapshot()
             assert receipt["selected_candidate_id"] == "second"
@@ -50,7 +50,7 @@ class TestChildController:
     def test_proposal_rejection_accept_and_undo_are_visible(self):
         with tempfile.TemporaryDirectory() as directory:
             controller = self.make_controller(directory)
-            controller.generate("request", [concept("first"), concept("second")])
+            controller.generate("request", [concept("first"), concept("second", 4)])
             controller.select("first")
             controller.focus((0, 1, 0), radius=2)
             controller.propose("make it red")
@@ -64,7 +64,7 @@ class TestChildController:
     def test_bridge_rejection_is_visible_and_keeps_proposal(self):
         with tempfile.TemporaryDirectory() as directory:
             controller = self.make_controller(directory)
-            controller.generate("request", [concept("first"), concept("second")])
+            controller.generate("request", [concept("first"), concept("second", 4)])
             controller.select("first")
             controller.focus((0, 1, 0), radius=2)
             controller.propose("make it taller")
@@ -82,7 +82,7 @@ class TestChildController:
     def test_restart_preserves_source_evidence_and_clears_active_state(self):
         with tempfile.TemporaryDirectory() as directory:
             controller = self.make_controller(directory)
-            generated = controller.generate("request", [concept("first"), concept("second")])
+            generated = controller.generate("request", [concept("first"), concept("second", 4)])
             run = Path(generated["generation_run"])
             controller.select("first")
             controller.restart()

@@ -2304,6 +2304,46 @@ lookout tower” smoke succeeded on attempt 2 without exposing the internal fami
 vocabulary to the live tool surface. Its root selection index resolved to the
 nested successful proposal artifact.
 
+#### Delivery slice 1.6: reject geometrically duplicate live candidates
+
+Status: verified (2026-09-03); duplicate geometry is rejected and the live
+repair path produces distinct candidates.
+
+Require candidate diversity to be based on normalized geometry rather than
+provider-chosen names, refs, or camera labels. Identical box geometry should
+produce an actionable deterministic diagnostic and cause the bounded live
+session to repair the set, while materially different geometry remains in the
+declared input order.
+
+Acceptance gates:
+
+- duplicate geometry is detected independent of candidate ID, label, geometry
+  refs, or render camera;
+- rejected duplicates retain diagnostics and do not produce misleading final
+  artifacts, while the model receives enough neutral feedback to repair them;
+- distinct candidates continue to preserve their raw source concepts, mapped
+  colors, LDraw output, and explicit-selection provenance;
+- regression coverage proves duplicate rejection, deterministic hashing, and
+  preservation of the no-ranking/no-automatic-selection boundary.
+
+Explicit non-goals: ranking candidates, choosing the most different option,
+semantic similarity or visual-quality scoring, new geometry families, UI work,
+purchasing, publishing, or Studio automation.
+
+Implementation notes (2026-09-03): candidate composition now derives a
+deterministic geometry-only hash from normalized box centers and sizes, sorted
+independently of box refs, candidate identity, labels, colors, and render
+cameras. A later matching candidate is retained as failed raw evidence with an
+actionable `DUPLICATE_GEOMETRY` diagnostic; the first occurrence and all
+materially different candidates remain in input order. Focused candidate
+composition tests cover metadata/order independence, deterministic hashes, and
+the existing explicit-selection/no-ranking boundary. No Pi prompt or UI change
+was made. The full Python suite passes with 145 tests and one expected skip, and
+the elevated compiled Pi runtime suite passes all 35 tests. A fresh
+adult-supervised “A small green beam bridge” smoke succeeded on attempt 1 after
+repair, with three unique geometry hashes and three unique emitted `.ldr`
+hashes.
+
 ### Delivery slice 2: live focused redesign of a selected concept
 
 Status: planned; start only after Delivery slice 1 passes its live smoke.

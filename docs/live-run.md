@@ -83,6 +83,11 @@ identifiers. Those details remain in the raw proposal artifact so explicit
 selection and redesign can use them without turning internal fixture families
 into the creative vocabulary.
 
+Candidate IDs alone do not make distinct choices: the deterministic composer
+also compares normalized box geometry while ignoring names, refs, colors, camera,
+and box order. A repeated geometry receives `DUPLICATE_GEOMETRY` feedback and
+cannot make the candidate set successful until repaired.
+
 The live provider smoke is manual and adult-supervised. The automated contract
 remains the offline scripted Pi test suite; no credentials or network access are
 needed to run those tests.
