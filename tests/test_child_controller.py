@@ -1,6 +1,6 @@
 import json
 import tempfile
-import unittest
+import pytest
 from pathlib import Path
 
 from brick_builder.child_controller import ChildController
@@ -17,7 +17,7 @@ def concept(identifier: str, width: int = 2) -> GenericBoxConcept:
     return GenericBoxConcept(identifier, f"A {identifier}", (Block("box", (0, 1, 0), (width, 2, 2), "#2878b5"),), {"camera": "three-quarter", "geometry_refs": ["box"]})
 
 
-class ChildControllerTests(unittest.TestCase):
+class TestChildController:
     def make_controller(self, directory: str) -> ChildController:
         return ChildController(directory, PALETTE)
 
@@ -25,16 +25,16 @@ class ChildControllerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             controller = self.make_controller(directory)
             before = controller.snapshot()
-            self.assertFalse(before["selection_enabled"])
+            assert not (before["selection_enabled"])
             result = controller.create_candidate_set("make two little towers", [concept("first"), concept("second", 4)])
-            self.assertTrue(result["generated"])
-            self.assertEqual([card["id"] for card in result["candidate_cards"]], ["first", "second"])
-            self.assertTrue((Path(result["generation_run"]) / "visual-critique.json").is_file())
-            self.assertNotIn("rank", json.dumps(result))
+            assert result["generated"]
+            assert [card["id"] for card in result["candidate_cards"]] == ["first", "second"]
+            assert (Path(result["generation_run"]) / "visual-critique.json").is_file()
+            assert "rank" not in json.dumps(result)
 
     def test_selection_is_disabled_before_generation(self):
         with tempfile.TemporaryDirectory() as directory:
-            with self.assertRaisesRegex(ValueError, "successful candidate set"):
+            with pytest.raises(ValueError, match="successful candidate set"):
                 self.make_controller(directory).select("first")
 
     def test_explicit_selection_retains_receipt_and_hash(self):
@@ -43,9 +43,9 @@ class ChildControllerTests(unittest.TestCase):
             controller.generate("request", [concept("first"), concept("second")])
             receipt = controller.select("second")
             state = controller.snapshot()
-            self.assertEqual(receipt["selected_candidate_id"], "second")
-            self.assertEqual(state["selection_receipt"]["candidate_set_hash"], state["candidate_set_hash"])
-            self.assertTrue(state["selection_receipt_hash"])
+            assert receipt["selected_candidate_id"] == "second"
+            assert state["selection_receipt"]["candidate_set_hash"] == state["candidate_set_hash"]
+            assert state["selection_receipt_hash"]
 
     def test_proposal_rejection_accept_and_undo_are_visible(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -54,12 +54,12 @@ class ChildControllerTests(unittest.TestCase):
             controller.select("first")
             controller.focus((0, 1, 0), radius=2)
             controller.propose("make it red")
-            self.assertEqual(controller.snapshot()["proposal_status"], "proposed")
+            assert controller.snapshot()["proposal_status"] == "proposed"
             accepted = controller.accept()
-            self.assertTrue(accepted["success"])
-            self.assertEqual(controller.snapshot()["proposal_status"], "accepted")
+            assert accepted["success"]
+            assert controller.snapshot()["proposal_status"] == "accepted"
             controller.undo()
-            self.assertEqual(controller.snapshot()["proposal_status"], "undone")
+            assert controller.snapshot()["proposal_status"] == "undone"
 
     def test_bridge_rejection_is_visible_and_keeps_proposal(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -74,10 +74,10 @@ class ChildControllerTests(unittest.TestCase):
                 for block in proposal.after
             ))
             rejected = controller.accept()
-            self.assertFalse(rejected["success"])
-            self.assertEqual(controller.snapshot()["proposal_status"], "rejected")
-            self.assertIsNotNone(controller.snapshot()["proposal"])
-            self.assertIn("NON_INTEGRAL_DIMENSION", " ".join(rejected["diagnostics"]))
+            assert not (rejected["success"])
+            assert controller.snapshot()["proposal_status"] == "rejected"
+            assert controller.snapshot()["proposal"] is not None
+            assert "NON_INTEGRAL_DIMENSION" in " ".join(rejected["diagnostics"])
 
     def test_restart_preserves_source_evidence_and_clears_active_state(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -87,11 +87,11 @@ class ChildControllerTests(unittest.TestCase):
             controller.select("first")
             controller.restart()
             state = controller.snapshot()
-            self.assertTrue(state["generated"])
-            self.assertIsNone(state["selected_candidate_id"])
-            self.assertEqual(state["candidate_cards"][0]["id"], "first")
-            self.assertTrue((run / "candidate-set.json").is_file())
-            self.assertTrue((run / "candidates/first/final.ldr").is_file())
+            assert state["generated"]
+            assert state["selected_candidate_id"] is None
+            assert state["candidate_cards"][0]["id"] == "first"
+            assert (run / "candidate-set.json").is_file()
+            assert (run / "candidates/first/final.ldr").is_file()
 
     def test_repeated_generation_is_deterministic_beyond_fresh_directory_name(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -99,9 +99,5 @@ class ChildControllerTests(unittest.TestCase):
             second = self.make_controller(directory).generate("request", [concept("first"), concept("second", 4)])
             first_set = json.loads((Path(first["generation_run"]) / "candidate-set.json").read_text())
             second_set = json.loads((Path(second["generation_run"]) / "candidate-set.json").read_text())
-            self.assertEqual(first_set, second_set)
-            self.assertEqual(first["candidate_set_hash"], second["candidate_set_hash"])
-
-
-if __name__ == "__main__":
-    unittest.main()
+            assert first_set == second_set
+            assert first["candidate_set_hash"] == second["candidate_set_hash"]

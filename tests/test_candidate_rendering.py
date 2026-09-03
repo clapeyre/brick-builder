@@ -1,6 +1,6 @@
 import json
 import tempfile
-import unittest
+import pytest
 from pathlib import Path
 
 from brick_builder.candidate_composition import compose_candidate_set
@@ -23,7 +23,7 @@ def concept(identifier, width=2):
     )
 
 
-class CandidateRenderingTests(unittest.TestCase):
+class TestCandidateRendering:
     def test_successful_candidates_get_deterministic_fixed_camera_evidence(self):
         candidate_set = compose_candidate_set("render these", [concept("first"), concept("second", 4)], PALETTE)
         with tempfile.TemporaryDirectory() as directory:
@@ -33,10 +33,10 @@ class CandidateRenderingTests(unittest.TestCase):
             first = render_candidate_set(candidate_set.snapshot(), root, PALETTE)
             bytes_one = (root / "candidates/first/render-evidence.json").read_bytes()
             second = render_candidate_set(candidate_set.snapshot(), root, PALETTE)
-            self.assertEqual(first, second)
-            self.assertEqual(bytes_one, (root / "candidates/first/render-evidence.json").read_bytes())
-            self.assertEqual([render["camera_id"] for render in first["candidates"][0]["renders"]], ["front", "three-quarter"])
-            self.assertTrue((root / "candidates/first/render-front.svg").is_file())
+            assert first == second
+            assert bytes_one == (root / "candidates/first/render-evidence.json").read_bytes()
+            assert [render["camera_id"] for render in first["candidates"][0]["renders"]] == ["front", "three-quarter"]
+            assert (root / "candidates/first/render-front.svg").is_file()
 
     def test_rejected_candidates_remain_indexed_without_render_artifacts(self):
         unsupported = GenericBoxConcept(
@@ -51,12 +51,8 @@ class CandidateRenderingTests(unittest.TestCase):
             for candidate in candidate_set.candidates:
                 (root / "candidates" / candidate["id"]).mkdir(parents=True, exist_ok=True)
             result = render_candidate_set(candidate_set.snapshot(), root, PALETTE)
-            self.assertEqual(result["status"], "rejected")
-            self.assertEqual([item["status"] for item in result["candidates"]], ["success", "failed"])
-            self.assertTrue((root / "candidates/first/render-evidence.json").is_file())
-            self.assertNotIn("render_evidence", result["candidates"][1])
-            self.assertFalse((root / "candidates/unsupported/render-evidence.json").exists())
-
-
-if __name__ == "__main__":
-    unittest.main()
+            assert result["status"] == "rejected"
+            assert [item["status"] for item in result["candidates"]] == ["success", "failed"]
+            assert (root / "candidates/first/render-evidence.json").is_file()
+            assert "render_evidence" not in result["candidates"][1]
+            assert not ((root / "candidates/unsupported/render-evidence.json").exists())

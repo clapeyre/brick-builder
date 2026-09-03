@@ -1,4 +1,4 @@
-import unittest
+import pytest
 from pathlib import Path
 
 from brick_builder.local_redesign import Block
@@ -19,7 +19,7 @@ def concept(*boxes):
     )
 
 
-class SteppedLEGOizationBridgeTests(unittest.TestCase):
+class TestSteppedLEGOizationBridge:
     def test_two_aligned_tiers_map_deterministically(self):
         value = concept(
             ("upper", (0, 1.5, 0), (2, 1, 2), "#2878b5"),
@@ -27,12 +27,12 @@ class SteppedLEGOizationBridgeTests(unittest.TestCase):
         )
         first = legoize_accepted_stepped_boxes(value, PALETTE)
         second = legoize_accepted_stepped_boxes(value, PALETTE)
-        self.assertTrue(first.success)
-        self.assertTrue(first.legoization.valid)
-        self.assertTrue(first.snapshot()["assembly"]["coverage_complete"])
-        self.assertTrue(first.snapshot()["assembly"]["structural_valid"])
-        self.assertEqual(first.serialize(), second.serialize())
-        self.assertEqual(first.mapping["spatial_units"], {"x": "stud", "y": "brick", "z": "stud"})
+        assert first.success
+        assert first.legoization.valid
+        assert first.snapshot()["assembly"]["coverage_complete"]
+        assert first.snapshot()["assembly"]["structural_valid"]
+        assert first.serialize() == second.serialize()
+        assert first.mapping["spatial_units"] == {"x": "stud", "y": "brick", "z": "stud"}
 
     def test_rejects_overlap_depth_and_non_integral_dimensions_without_assembly(self):
         cases = [
@@ -42,17 +42,13 @@ class SteppedLEGOizationBridgeTests(unittest.TestCase):
         ]
         for candidate, code in cases:
             result = legoize_accepted_stepped_boxes(candidate, PALETTE)
-            self.assertFalse(result.success)
-            self.assertIsNone(result.legoization)
-            self.assertTrue(any(code in diagnostic for diagnostic in result.diagnostics))
+            assert not (result.success)
+            assert result.legoization is None
+            assert any(code in diagnostic for diagnostic in result.diagnostics)
 
     def test_requires_exactly_two_and_reports_source_mapping(self):
         result = legoize_accepted_stepped_boxes(concept(("only", (0, 1, 0), (2, 2, 2), "#2878b5")), PALETTE)
-        self.assertFalse(result.success)
-        self.assertIsNone(result.mapping)
-        self.assertEqual(result.snapshot()["source_concept"]["geometry"][0]["ref"], "only")
-        self.assertIn("TWO_BOXES_REQUIRED", result.diagnostics[0])
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert not (result.success)
+        assert result.mapping is None
+        assert result.snapshot()["source_concept"]["geometry"][0]["ref"] == "only"
+        assert "TWO_BOXES_REQUIRED" in result.diagnostics[0]

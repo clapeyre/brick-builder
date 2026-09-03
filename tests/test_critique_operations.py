@@ -1,6 +1,6 @@
 import json
 import tempfile
-import unittest
+import pytest
 from pathlib import Path
 
 from brick_builder.candidate_composition import compose_candidate_set
@@ -43,33 +43,33 @@ def fixture():
         }
 
 
-class CritiqueOperationTests(unittest.TestCase):
+class TestCritiqueOperation:
     def test_fixture_records_traceability_validity_and_no_semantic_score(self):
         result, critique, operation = fixture()
         evaluation = evaluate_critique_operation(result, "baseline", critique, operation, PALETTE)
         artifact = evaluation.snapshot()
-        self.assertEqual(artifact["format"], FORMAT)
-        self.assertTrue(evaluation.success)
-        self.assertTrue(artifact["result"]["engineering_validation"]["valid"])
-        self.assertEqual(artifact["traceability"]["baseline_candidate_set_hash"], result.candidate_set_hash)
-        self.assertFalse(artifact["comparison"]["semantic_resemblance_evaluated"])
-        self.assertNotIn("score", json.dumps(artifact).lower())
+        assert artifact["format"] == FORMAT
+        assert evaluation.success
+        assert artifact["result"]["engineering_validation"]["valid"]
+        assert artifact["traceability"]["baseline_candidate_set_hash"] == result.candidate_set_hash
+        assert not (artifact["comparison"]["semantic_resemblance_evaluated"])
+        assert "score" not in json.dumps(artifact).lower()
 
     def test_fixed_input_is_byte_identical(self):
         result, critique, operation = fixture()
         evaluation = evaluate_critique_operation(result, "baseline", critique, operation, PALETTE)
         first = evaluation.serialize()
         second = evaluate_critique_operation(result, "baseline", critique, operation, PALETTE).serialize()
-        self.assertEqual(first, second)
+        assert first == second
         with tempfile.TemporaryDirectory() as directory:
             artifact_path = evaluation.write(Path(directory) / "critique-operation.json")
-            self.assertEqual(artifact_path.read_text(encoding="utf-8").rstrip("\n"), first)
+            assert artifact_path.read_text(encoding="utf-8").rstrip("\n") == first
 
     def test_unknown_or_unbounded_operation_is_actionably_rejected(self):
         result, critique, _ = fixture()
-        with self.assertRaisesRegex(CritiqueOperationError, "not allowlisted"):
+        with pytest.raises(CritiqueOperationError, match="not allowlisted"):
             evaluate_critique_operation(result, "baseline", critique, {"name": "stretch-tail", "parameters": {}}, PALETTE)
-        with self.assertRaisesRegex(CritiqueOperationError, "from 1 to 2"):
+        with pytest.raises(CritiqueOperationError, match="from 1 to 2"):
             evaluate_critique_operation(result, "baseline", critique, {"name": "increase-height", "parameters": {"plates": 99}}, PALETTE)
 
     def test_failed_revalidation_preserves_baseline_and_reports_regression(self):
@@ -79,17 +79,13 @@ class CritiqueOperationTests(unittest.TestCase):
             {"name": "increase-height", "parameters": {"block_id": "box", "plates": 1}}, PALETTE,
         )
         artifact = evaluation.snapshot()
-        self.assertFalse(evaluation.success)
-        self.assertTrue(artifact["result"]["baseline_preserved"])
-        self.assertFalse(artifact["result"]["engineering_validation"]["valid"])
-        self.assertTrue(artifact["comparison"]["regression"]["engineering_validity_lost"])
-        self.assertIn("NON_INTEGRAL_DIMENSION", " ".join(artifact["result"]["rejection_diagnostics"]))
+        assert not (evaluation.success)
+        assert artifact["result"]["baseline_preserved"]
+        assert not (artifact["result"]["engineering_validation"]["valid"])
+        assert artifact["comparison"]["regression"]["engineering_validity_lost"]
+        assert "NON_INTEGRAL_DIMENSION" in " ".join(artifact["result"]["rejection_diagnostics"])
 
     def test_malformed_parameters_are_rejected_before_redesign(self):
         result, critique, _ = fixture()
-        with self.assertRaisesRegex(CritiqueOperationError, "must be an object"):
+        with pytest.raises(CritiqueOperationError, match="must be an object"):
             evaluate_critique_operation(result, "baseline", critique, {"name": "recolor", "parameters": None}, PALETTE)
-
-
-if __name__ == "__main__":
-    unittest.main()

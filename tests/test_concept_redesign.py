@@ -1,5 +1,5 @@
 import json
-import unittest
+import pytest
 
 from brick_builder.concept_redesign import ConceptRedesignSession
 from brick_builder.spatial_concept import SpatialConceptSession
@@ -21,15 +21,15 @@ def accepted():
     return spatial, "lookout-a"
 
 
-class ConceptRedesignTests(unittest.TestCase):
+class TestConceptRedesign:
     def test_accepted_concept_round_trip_preserves_boxes_and_camera(self):
         spatial, concept_id = accepted()
         session = ConceptRedesignSession.from_spatial_session(spatial, concept_id)
         encoded = session.serialize()
         restored = ConceptRedesignSession.from_serialized(encoded)
-        self.assertEqual(restored.serialize(), encoded)
-        self.assertEqual(restored.blocks, session.blocks)
-        self.assertEqual(restored.starting_concept.render, session.starting_concept.render)
+        assert restored.serialize() == encoded
+        assert restored.blocks == session.blocks
+        assert restored.starting_concept.render == session.starting_concept.render
 
     def test_locked_box_is_preserved_and_evidence_records_instruction_and_spillover(self):
         spatial, concept_id = accepted()
@@ -37,9 +37,9 @@ class ConceptRedesignTests(unittest.TestCase):
         session.set_focus((0, 0, 0), radius=3, block_id="base")
         session.lock_selected()
         proposal = session.propose("make the tower taller")
-        self.assertNotIn("base", proposal["changed_ids"])
-        self.assertEqual(session.evidence[-1]["proposal"]["instruction"], "make the tower taller")
-        self.assertIn("spillover_ids", proposal)
+        assert "base" not in proposal["changed_ids"]
+        assert session.evidence[-1]["proposal"]["instruction"] == "make the tower taller"
+        assert "spillover_ids" in proposal
 
     def test_retry_preserves_focus_locks_and_undo_restores_start(self):
         spatial, concept_id = accepted()
@@ -49,16 +49,12 @@ class ConceptRedesignTests(unittest.TestCase):
         start = json.loads(session.serialize())
         first = session.propose("make this taller")
         second = session.retry()
-        self.assertEqual(first["selection"], second["selection"])
-        self.assertEqual(first["locked"], second["locked"])
+        assert first["selection"] == second["selection"]
+        assert first["locked"] == second["locked"]
         session.accept()
         session.undo()
-        self.assertEqual(session.blocks, session.starting_concept.boxes)
-        self.assertEqual(session.focus.block_id, None)
-        self.assertEqual(session.locked_ids, {"base"})
-        self.assertEqual(json.loads(session.serialize())["starting_concept"], start["starting_concept"])
-        self.assertEqual([item["operation"] for item in session.evidence], ["propose", "retry", "accept", "undo"])
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert session.blocks == session.starting_concept.boxes
+        assert session.focus.block_id == None
+        assert session.locked_ids == {"base"}
+        assert json.loads(session.serialize())["starting_concept"] == start["starting_concept"]
+        assert [item["operation"] for item in session.evidence] == ["propose", "retry", "accept", "undo"]

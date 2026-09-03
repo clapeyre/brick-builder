@@ -1,5 +1,5 @@
 import json
-import unittest
+import pytest
 from pathlib import Path
 
 from brick_builder.palette import load_palette
@@ -19,22 +19,22 @@ def part(pid, name, colour=4, xyz=(0, 0, 0), matrix=None):
     return {"id": pid, "part": name, "colour": colour, "translation_ldu": list(xyz), "matrix": matrix or IDENTITY}
 
 
-class GeometryTests(unittest.TestCase):
+class TestGeometry:
     def test_profile_convention(self):
         profiles = profiles_from_palette(PALETTE)
         brick = profiles["3004.dat"]
-        self.assertEqual((brick.x_studs, brick.z_studs), (2, 1))
-        self.assertEqual(brick.bounds, (-20, 0, -10, 20, 24, 10))
-        self.assertEqual(brick.ports()[0], [(-10, 0, 0), (10, 0, 0)])
-        self.assertEqual({p[1] for p in brick.ports()[1]}, {24})
+        assert (brick.x_studs, brick.z_studs) == (2, 1)
+        assert brick.bounds == (-20, 0, -10, 20, 24, 10)
+        assert brick.ports()[0] == [(-10, 0, 0), (10, 0, 0)]
+        assert {p[1] for p in brick.ports()[1]} == {24}
         plate = profiles["3023.dat"]
-        self.assertEqual((plate.x_studs, plate.z_studs, plate.height_plates), (2, 1, 1))
+        assert (plate.x_studs, plate.z_studs, plate.height_plates) == (2, 1, 1)
 
     def test_transformed_profile_preserves_rotated_port_coordinates(self):
         profile = profiles_from_palette(PALETTE)["3004.dat"]
         bbox, top, bottom = transformed_profile(profile, part("r", "3004.dat", xyz=(10, -24, 10), matrix=[0, 0, 1, 0, 1, 0, -1, 0, 0]))
-        self.assertEqual(bbox, (0, -24, -10, 20, 0, 30))
-        self.assertIn((10, -24, 0), top)
+        assert bbox == (0, -24, -10, 20, 0, 30)
+        assert (10, -24, 0) in top
 
     def test_reference_models_are_connected(self):
         for name in ("tiny-red-wall.json", "tiny-blue-step.json"):
@@ -44,57 +44,57 @@ class GeometryTests(unittest.TestCase):
     def test_geometry_analysis_result_is_shared_and_deterministic(self):
         data = json.loads((ROOT / "examples" / "reference_models" / "rotated-one-stud.json").read_text())
         analysis = validate_geometry(data, PALETTE)
-        self.assertEqual(analysis.overall_bounds, (-20.0, -24.0, 0.0, 20.0, 24.0, 40.0))
-        self.assertEqual(analysis.edges, (("base", "upper"),))
-        self.assertEqual(analysis.grounded_ids, ("base",))
-        self.assertEqual(analysis.root_id, "base")
+        assert analysis.overall_bounds == (-20.0, -24.0, 0.0, 20.0, 24.0, 40.0)
+        assert analysis.edges == (("base", "upper"),)
+        assert analysis.grounded_ids == ("base",)
+        assert analysis.root_id == "base"
 
     def test_shifted_model_is_rejected_for_absolute_grid_misalignment(self):
         data = json.loads((ROOT / "examples" / "reference_models/rotated-one-stud.json").read_text())
         data["parts"][0]["translation_ldu"] = [0, 0, 0]
         data["parts"][1]["translation_ldu"] = [10, -24, 10]
-        with self.assertRaises(ValidationError) as caught:
+        with pytest.raises(ValidationError) as caught:
             validate_model(data, PALETTE)
-        self.assertTrue(any(issue.code == "GRID_MISALIGNMENT" for issue in caught.exception.issues))
+        assert any(issue.code == "GRID_MISALIGNMENT" for issue in caught.value.issues)
 
     def test_rotated_reference_has_one_expected_connection_and_no_collision(self):
         data = json.loads((ROOT / "examples" / "reference_models" / "rotated-one-stud.json").read_text())
         issues, edges = validate_geometry(data, PALETTE)
-        self.assertEqual(issues, ())
-        self.assertEqual(edges, {("base", "upper")})
+        assert issues == ()
+        assert edges == {("base", "upper")}
 
     def test_floating_and_disconnected_parts_fail(self):
-        with self.assertRaises(ValidationError) as caught:
+        with pytest.raises(ValidationError) as caught:
             validate_model(model([part("base", "3005.dat"), part("a", "3005.dat", xyz=(0, -24, 100))]), PALETTE)
-        self.assertTrue(any(i.code == "DISCONNECTED_ASSEMBLY" for i in caught.exception.issues))
-        with self.assertRaises(ValidationError) as caught:
+        assert any(i.code == "DISCONNECTED_ASSEMBLY" for i in caught.value.issues)
+        with pytest.raises(ValidationError) as caught:
             validate_model(model([part("a", "3005.dat"), part("b", "3005.dat", xyz=(100, 0, 0))]), PALETTE)
-        self.assertTrue(any(i.code == "DISCONNECTED_ASSEMBLY" for i in caught.exception.issues))
+        assert any(i.code == "DISCONNECTED_ASSEMBLY" for i in caught.value.issues)
 
     def test_overlap_and_unsupported_contact_fail(self):
-        with self.assertRaises(ValidationError) as caught:
+        with pytest.raises(ValidationError) as caught:
             validate_model(model([part("a", "3005.dat"), part("b", "3005.dat", xyz=(0, -4, 0))]), PALETTE)
-        self.assertTrue(any(i.code == "GEOMETRY_OVERLAP" for i in caught.exception.issues))
-        with self.assertRaises(ValidationError) as caught:
+        assert any(i.code == "GEOMETRY_OVERLAP" for i in caught.value.issues)
+        with pytest.raises(ValidationError) as caught:
             validate_model(model([part("a", "3005.dat"), part("b", "3005.dat", xyz=(10, -24, 0))]), PALETTE)
-        self.assertTrue(any(i.code == "UNSUPPORTED_CONTACT" for i in caught.exception.issues))
+        assert any(i.code == "UNSUPPORTED_CONTACT" for i in caught.value.issues)
 
     def test_rotation_and_tile_termination(self):
         validate_model(model([part("a", "3004.dat", xyz=(0, 0, 10)), part("b", "3004.dat", xyz=(10, -24, 20), matrix=[0, 0, 1, 0, 1, 0, -1, 0, 0])]), PALETTE)
-        with self.assertRaises(ValidationError) as caught:
+        with pytest.raises(ValidationError) as caught:
             validate_model(model([part("base", "3005.dat"), part("tile", "3070b.dat", xyz=(0, -8, 0)), part("top", "3005.dat", xyz=(0, -32, 0))]), PALETTE)
-        self.assertTrue(any(i.code in {"DISCONNECTED_ASSEMBLY", "UNSUPPORTED_CONTACT"} for i in caught.exception.issues))
+        assert any(i.code in {"DISCONNECTED_ASSEMBLY", "UNSUPPORTED_CONTACT"} for i in caught.value.issues)
 
     def test_schema_rejects_extra_property(self):
         document = model([part("a", "3005.dat")])
         document["unexpected"] = True
-        with self.assertRaises(ValidationError) as caught:
+        with pytest.raises(ValidationError) as caught:
             validate_model(document, PALETTE)
-        self.assertTrue(any(i.code == "SCHEMA_INVALID" for i in caught.exception.issues))
+        assert any(i.code == "SCHEMA_INVALID" for i in caught.value.issues)
 
     def test_schema_rejects_invalid_model_id_pattern(self):
         document = model([part("a", "3005.dat")])
         document["model_id"] = "Not Valid"
-        with self.assertRaises(ValidationError) as caught:
+        with pytest.raises(ValidationError) as caught:
             validate_model(document, PALETTE)
-        self.assertTrue(any(i.code == "SCHEMA_INVALID" for i in caught.exception.issues))
+        assert any(i.code == "SCHEMA_INVALID" for i in caught.value.issues)

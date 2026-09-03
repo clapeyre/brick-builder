@@ -1,9 +1,10 @@
+import re
 import hashlib
 import json
 import subprocess
 import sys
 import tempfile
-import unittest
+import pytest
 from unittest.mock import patch
 from pathlib import Path
 
@@ -15,103 +16,103 @@ def run(*args):
     return subprocess.run([PYTHON, "-m", "brick_builder.cli", *map(str, args)], cwd=ROOT, text=True, capture_output=True)
 
 
-class CliContractTests(unittest.TestCase):
-    def assert_json(self, result, code=0):
-        self.assertEqual(result.returncode, code, result.stderr)
-        self.assertEqual(result.stderr, "")
+class TestCliContract:
+    def parse_json(self, result, code=0):
+        assert result.returncode == code, result.stderr
+        assert result.stderr == ""
         lines = result.stdout.splitlines()
-        self.assertEqual(len(lines), 1)
+        assert len(lines) == 1
         return json.loads(lines[0])
 
     def test_catalog_contract(self):
-        data = self.assert_json(run("catalog"))
+        data = self.parse_json(run("catalog"))
         part = next(p for p in data["parts"] if p["part"] == "3004.dat")
-        self.assertEqual((part["x_studs"], part["z_studs"]), (2, 1))
-        self.assertTrue(data["allowed_colours"])
-        self.assertEqual(data["allowed_colours"], sorted(data["allowed_colours"], key=lambda c: c["code"]))
-        self.assertTrue(all(set(("code", "name")) <= set(c) for c in data["allowed_colours"]))
+        assert (part["x_studs"], part["z_studs"]) == (2, 1)
+        assert data["allowed_colours"]
+        assert data["allowed_colours"] == sorted(data["allowed_colours"], key=lambda c: c["code"])
+        assert all(set(("code", "name")) <= set(c) for c in data["allowed_colours"])
 
     def test_validate_and_analyze_contract(self):
         model = ROOT / "examples/reference_models/rotated-one-stud.json"
-        valid = self.assert_json(run("validate", model))
-        self.assertTrue(valid["valid"])
-        analysis = self.assert_json(run("analyze", model))
-        self.assertEqual(analysis["edges"], [["base", "upper"]])
-        self.assertEqual(analysis["root_id"], "base")
+        valid = self.parse_json(run("validate", model))
+        assert valid["valid"]
+        analysis = self.parse_json(run("analyze", model))
+        assert analysis["edges"] == [["base", "upper"]]
+        assert analysis["root_id"] == "base"
 
     def test_invalid_and_disconnected_models_are_structured(self):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "bad.json"
             path.write_text(json.dumps({"schema_version": 1, "model_id": "Bad ID", "name": "bad", "parts": []}))
-            data = self.assert_json(run("validate", path), 2)
-            self.assertFalse(data["valid"])
-            self.assertTrue(all(set(("code", "path", "message", "repair_hint")) <= set(i) for i in data["issues"]))
+            data = self.parse_json(run("validate", path), 2)
+            assert not (data["valid"])
+            assert all(set(("code", "path", "message", "repair_hint")) <= set(i) for i in data["issues"])
 
             disconnected = {"schema_version": 1, "model_id": "disconnected", "name": "x", "parts": [
                 {"id": "a", "part": "3005.dat", "colour": 4, "translation_ldu": [0, 0, 0], "matrix": [1, 0, 0, 0, 1, 0, 0, 0, 1]},
                 {"id": "b", "part": "3005.dat", "colour": 1, "translation_ldu": [100, 0, 0], "matrix": [1, 0, 0, 0, 1, 0, 0, 0, 1]}]}
             path.write_text(json.dumps(disconnected))
-            data = self.assert_json(run("validate", path), 2)
-            self.assertTrue(any(i["code"] == "DISCONNECTED_ASSEMBLY" for i in data["issues"]))
+            data = self.parse_json(run("validate", path), 2)
+            assert any(i["code"] == "DISCONNECTED_ASSEMBLY" for i in data["issues"])
 
     def test_invalid_analyze_and_compile_are_structured(self):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "invalid.json"
             path.write_text("{}")
-            self.assertFalse(self.assert_json(run("analyze", path), 2)["valid"])
+            assert not (self.parse_json(run("analyze", path), 2)["valid"])
             output = Path(d) / "should-not-exist.ldr"
-            self.assertFalse(self.assert_json(run("compile", path, output), 2)["valid"])
-            self.assertFalse(output.exists())
+            assert not (self.parse_json(run("compile", path, output), 2)["valid"])
+            assert not (output.exists())
 
     def test_internal_handler_error_is_exit_three(self):
         from brick_builder import cli
         with patch.object(cli, "_catalog", side_effect=RuntimeError("boom")):
             with patch("sys.stdout") as stdout:
                 status = cli.main(["catalog"])
-        self.assertEqual(status, 3)
+        assert status == 3
         payload = json.loads("".join(call.args[0] for call in stdout.write.call_args_list))
-        self.assertEqual(payload["issues"][0]["code"], "INTERNAL_ERROR")
+        assert payload["issues"][0]["code"] == "INTERNAL_ERROR"
 
     def test_compile_hash_and_legacy_shim(self):
         model = ROOT / "examples/reference_models/rotated-one-stud.json"
         with tempfile.TemporaryDirectory() as d:
             out = Path(d) / "model.ldr"
-            data = self.assert_json(run("compile", model, out))
-            self.assertTrue(out.exists())
-            self.assertEqual(data["sha256"], hashlib.sha256(out.read_bytes()).hexdigest())
-            legacy = self.assert_json(run(model, Path(d) / "legacy.ldr"))
-            self.assertTrue(legacy["valid"])
+            data = self.parse_json(run("compile", model, out))
+            assert out.exists()
+            assert data["sha256"] == hashlib.sha256(out.read_bytes()).hexdigest()
+            legacy = self.parse_json(run(model, Path(d) / "legacy.ldr"))
+            assert legacy["valid"]
 
     def test_demo_generate_smoke_and_analysis_artifact(self):
         with tempfile.TemporaryDirectory() as d:
             run_dir = Path(d) / "demo"
-            data = self.assert_json(run("demo-generate", "tiny red wall", "--run-dir", run_dir))
-            self.assertTrue(data["valid"])
+            data = self.parse_json(run("demo-generate", "tiny red wall", "--run-dir", run_dir))
+            assert data["valid"]
             manifest = json.loads((run_dir / "manifest.json").read_text())
-            self.assertEqual(manifest["outcome"], "success")
-            self.assertEqual(manifest["attempts"], 1)
-            self.assertRegex(manifest["palette_sha256"], r"^[0-9a-f]{64}$")
-            self.assertIn("software_version", manifest)
+            assert manifest["outcome"] == "success"
+            assert manifest["attempts"] == 1
+            re.search(r"^[0-9a-f]{64}$", manifest["palette_sha256"])
+            assert "software_version" in manifest
             analysis = json.loads((run_dir / "analysis-1.json").read_text())
             for field in ("edges", "bounds_ldu", "dimensions", "grounded_ids", "root_id", "collision_count", "disconnection_count"):
-                self.assertIn(field, analysis)
-            self.assertEqual(analysis["collision_count"], 0)
+                assert field in analysis
+            assert analysis["collision_count"] == 0
 
     def test_demo_generate_rejects_invalid_attempt_limit(self):
         with tempfile.TemporaryDirectory() as d:
             result = run("demo-generate", "wall", "--run-dir", Path(d) / "demo", "--max-attempts", "0")
-            data = self.assert_json(result, 2)
-            self.assertFalse(data["valid"])
-            self.assertEqual(data["issues"][0]["code"], "INPUT_ERROR")
+            data = self.parse_json(result, 2)
+            assert not (data["valid"])
+            assert data["issues"][0]["code"] == "INPUT_ERROR"
 
     def test_manifest_command_invalid_inputs_are_structured(self):
         with tempfile.TemporaryDirectory() as d:
-            missing = self.assert_json(run("manifest", Path(d) / "missing", "--outcome", "success", "--attempts", "1", "--max-attempts", "3"), 2)
-            self.assertEqual(missing["issues"][0]["code"], "INPUT_ERROR")
+            missing = self.parse_json(run("manifest", Path(d) / "missing", "--outcome", "success", "--attempts", "1", "--max-attempts", "3"), 2)
+            assert missing["issues"][0]["code"] == "INPUT_ERROR"
             root = Path(d) / "run"
             root.mkdir()
-            invalid = self.assert_json(run("manifest", root, "--outcome", "nope", "--attempts", "4", "--max-attempts", "3"), 2)
-            self.assertEqual(invalid["issues"][0]["code"], "INPUT_ERROR")
+            invalid = self.parse_json(run("manifest", root, "--outcome", "nope", "--attempts", "4", "--max-attempts", "3"), 2)
+            assert invalid["issues"][0]["code"] == "INPUT_ERROR"
 
     def test_manifest_command_writes_hashes(self):
         with tempfile.TemporaryDirectory() as d:
@@ -119,7 +120,7 @@ class CliContractTests(unittest.TestCase):
             root.mkdir()
             artifact = root / "command-catalog.json"
             artifact.write_text('{"valid":true}\n')
-            self.assert_json(run("manifest", root, "--outcome", "exhausted", "--attempts", "3", "--max-attempts", "3"))
+            self.parse_json(run("manifest", root, "--outcome", "exhausted", "--attempts", "3", "--max-attempts", "3"))
             manifest = json.loads((root / "manifest.json").read_text())
-            self.assertEqual(manifest["outcome"], "exhausted")
-            self.assertEqual(manifest["files"][artifact.name], hashlib.sha256(artifact.read_bytes()).hexdigest())
+            assert manifest["outcome"] == "exhausted"
+            assert manifest["files"][artifact.name] == hashlib.sha256(artifact.read_bytes()).hexdigest()

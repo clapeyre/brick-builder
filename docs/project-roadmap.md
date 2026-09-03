@@ -2008,6 +2008,42 @@ Observed results (2026-09-02):
 This verifies offline evaluation bookkeeping, not evidence that visual repairs
 improve real-world resemblance or child preference.
 
+### Test workflow slice: pytest-native test modules
+
+Status: verified (2026-09-03).
+
+Complete the pytest migration by converting the existing Python test modules
+from `unittest.TestCase` methods to native pytest classes and assertions. Keep
+the current scenarios and coverage, using pytest fixtures/setup, `pytest.raises`,
+pytest skip markers, and plain assertions. The suite must have one supported
+Python test framework rather than relying on pytest's unittest compatibility
+plugin.
+
+Acceptance gates:
+
+- all existing Python test modules are collected as pytest-native tests with
+  no `unittest.TestCase`, `unittest.main`, or `self.assert*` test-framework
+  usage;
+- setup, exception, and conditional Tk behavior retain their existing
+  semantics under pytest;
+- `python -m pytest -q` passes the complete suite in the core environment and
+  the focused selector suite passes in the desktop environment;
+- no production dependency, product behavior, test scenario, or integration
+  boundary changes.
+
+Explicit non-goals: new test scenarios, third-party pytest plugins, product
+changes, UI changes, and changes to the deterministic test fixtures.
+
+Observed result: all 22 Python test modules are pytest-native. The strict core
+run with pytest's unittest compatibility plugin disabled passes with 138 tests
+passed and 1 expected Tk smoke-test skip; the focused desktop selector run
+passes 9 tests in the real Tk environment. The repository contains no
+`unittest.TestCase`, `unittest.main`, `self.assert*`, unittest setup-hook, or
+test-framework imports. The remaining `unittest.mock` imports are standard
+library mocking utilities, not a second test runner. Compilation and diff
+checks also pass. No scenarios, fixtures, production code, or integration
+boundaries changed.
+
 ### MVP slice 5: bounded grounded height reduction
 
 Status: verified (2026-09-02).

@@ -1,4 +1,4 @@
-import unittest
+import pytest
 from pathlib import Path
 
 from brick_builder.legoization_bridge import legoize_accepted_box
@@ -18,17 +18,17 @@ def concept(*boxes):
     })
 
 
-class LEGOizationBridgeTests(unittest.TestCase):
+class TestLEGOizationBridge:
     def test_one_grounded_box_maps_and_is_repeatable(self):
         value = concept(("box", (0, 2, 0), (4, 4, 2), "#2878b5"))
         first = legoize_accepted_box(value, PALETTE)
         second = legoize_accepted_box(value, PALETTE)
-        self.assertTrue(first.success)
-        self.assertTrue(first.legoization.valid)
-        self.assertTrue(first.snapshot()["assembly"]["coverage_complete"])
-        self.assertTrue(first.snapshot()["assembly"]["structural_valid"])
-        self.assertEqual(first.serialize(), second.serialize())
-        self.assertEqual(first.mapping["spatial_units"], {"x": "stud", "y": "plate", "z": "stud"})
+        assert first.success
+        assert first.legoization.valid
+        assert first.snapshot()["assembly"]["coverage_complete"]
+        assert first.snapshot()["assembly"]["structural_valid"]
+        assert first.serialize() == second.serialize()
+        assert first.mapping["spatial_units"] == {"x": "stud", "y": "plate", "z": "stud"}
 
     def test_rejects_multi_box_non_integral_grounding_and_bounds(self):
         cases = [
@@ -39,15 +39,11 @@ class LEGOizationBridgeTests(unittest.TestCase):
         ]
         for candidate, code in cases:
             result = legoize_accepted_box(candidate, PALETTE)
-            self.assertFalse(result.success)
-            self.assertIsNone(result.legoization)
-            self.assertTrue(any(code in diagnostic for diagnostic in result.diagnostics))
+            assert not (result.success)
+            assert result.legoization is None
+            assert any(code in diagnostic for diagnostic in result.diagnostics)
 
     def test_source_concept_is_preserved_in_serialized_result(self):
         result = legoize_accepted_box(concept(("box", (0, 1, 0), (2, 2, 2), "#2878b5")), PALETTE)
-        self.assertEqual(result.snapshot()["source_concept"]["geometry"][0]["ref"], "box")
-        self.assertIn("compiled_ldr", result.snapshot()["assembly"])
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert result.snapshot()["source_concept"]["geometry"][0]["ref"] == "box"
+        assert "compiled_ldr" in result.snapshot()["assembly"]

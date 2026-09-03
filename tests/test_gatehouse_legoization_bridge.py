@@ -1,4 +1,4 @@
-import unittest
+import pytest
 from pathlib import Path
 
 from brick_builder.gatehouse_legoization_bridge import legoize_accepted_gatehouse
@@ -18,7 +18,7 @@ def concept(*boxes):
     )
 
 
-class GatehouseLEGOizationBridgeTests(unittest.TestCase):
+class TestGatehouseLEGOizationBridge:
     def test_symmetric_three_box_gatehouse_is_complete_and_repeatable(self):
         value = concept(
             ("bridge", (0, 1.5, 0), (6, 1, 2), "#2878b5"),
@@ -27,12 +27,12 @@ class GatehouseLEGOizationBridgeTests(unittest.TestCase):
         )
         first = legoize_accepted_gatehouse(value, PALETTE)
         second = legoize_accepted_gatehouse(value, PALETTE)
-        self.assertTrue(first.success)
-        self.assertTrue(first.legoization.valid)
-        self.assertTrue(first.snapshot()["assembly"]["coverage_complete"])
-        self.assertTrue(first.snapshot()["assembly"]["structural_valid"])
-        self.assertEqual(first.serialize(), second.serialize())
-        self.assertEqual(first.mapping["opening_width_studs"], 2)
+        assert first.success
+        assert first.legoization.valid
+        assert first.snapshot()["assembly"]["coverage_complete"]
+        assert first.snapshot()["assembly"]["structural_valid"]
+        assert first.serialize() == second.serialize()
+        assert first.mapping["opening_width_studs"] == 2
 
     def test_rejects_bad_alignment_and_partial_shape_without_assembly(self):
         candidate = concept(
@@ -41,14 +41,14 @@ class GatehouseLEGOizationBridgeTests(unittest.TestCase):
             ("left", (-2, 0.5, 0), (2, 1, 2), "#2878b5"),
         )
         result = legoize_accepted_gatehouse(candidate, PALETTE)
-        self.assertFalse(result.success)
-        self.assertIsNone(result.legoization)
-        self.assertTrue(any("TOWERS_NOT_SYMMETRIC" in item for item in result.diagnostics))
+        assert not (result.success)
+        assert result.legoization is None
+        assert any("TOWERS_NOT_SYMMETRIC" in item for item in result.diagnostics)
 
         result = legoize_accepted_gatehouse(concept(("one", (0, 0.5, 0), (2, 1, 2), "#2878b5")), PALETTE)
-        self.assertFalse(result.success)
-        self.assertIsNone(result.mapping)
-        self.assertIn("THREE_BOXES_REQUIRED", result.diagnostics[0])
+        assert not (result.success)
+        assert result.mapping is None
+        assert "THREE_BOXES_REQUIRED" in result.diagnostics[0]
 
     def test_rejects_non_integral_or_mismatched_depth(self):
         result = legoize_accepted_gatehouse(concept(
@@ -56,9 +56,5 @@ class GatehouseLEGOizationBridgeTests(unittest.TestCase):
             ("right", (2, 0.5, 0), (2, 1, 2), "#2878b5"),
             ("left", (-2, 0.5, 0), (2, 1, 2), "#2878b5"),
         ), PALETTE)
-        self.assertFalse(result.success)
-        self.assertTrue(any("NON_INTEGRAL_DIMENSION" in item for item in result.diagnostics))
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert not (result.success)
+        assert any("NON_INTEGRAL_DIMENSION" in item for item in result.diagnostics)
