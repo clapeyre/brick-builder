@@ -2150,8 +2150,8 @@ and vehicles.
 
 ### Delivery slice 1: adult-configured live concept-to-candidate run
 
-Status: verification incomplete; compiled Pi runtime suite and manual live
-smoke pending (2026-09-03). This supersedes the previous recommendation to run
+Status: implementation complete; manual live smoke pending (2026-09-03). The
+compiled Pi runtime suite is verified. This supersedes the previous recommendation to run
 a child-preference evaluation now.
 
 Use the existing restricted Pi agent and spatial-concept/candidate contracts
@@ -2196,11 +2196,13 @@ and must be reported separately from the offline automated evidence.
 
 #### Delivery slice 1 verification recovery
 
-Status: planned; required before manual provider smoke or Delivery slice 2.
+Status: verified (2026-09-03); manual provider smoke remains required before
+Delivery slice 2.
 
-The Luna High root integrator must request elevated access for the actual
-compiled Pi runtime command, run the documented offline frozen-lockfile setup
-and emitted Node test suite in that same environment, and record the outcome.
+The root integrator requested elevated access for the actual compiled Pi runtime
+command, ran the documented offline frozen-lockfile setup and emitted Node test
+suite in that same environment, and recorded 28 passing tests with zero
+failures.
 The unresolved local package-link report is not a product diagnosis and must
 not be handed to the owner as an action item. If elevation is denied or the
 runtime suite still fails after correct elevated setup, retain the exact output
