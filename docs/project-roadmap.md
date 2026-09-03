@@ -2153,9 +2153,9 @@ and vehicles.
 
 ### Delivery slice 1: adult-configured live concept-to-candidate run
 
-Status: implementation complete; manual live smoke pending (2026-09-03). The
-compiled Pi runtime suite is verified. This supersedes the previous recommendation to run
-a child-preference evaluation now.
+Status: implementation complete; manual live smoke verified (2026-09-03). The
+compiled Pi runtime suite is verified. This supersedes the previous
+recommendation to run a child-preference evaluation now.
 
 Use the existing restricted Pi agent and spatial-concept/candidate contracts
 with one real, adult-configured model provider. Given ordinary request text,
@@ -2199,18 +2199,53 @@ and must be reported separately from the offline automated evidence.
 
 #### Delivery slice 1 verification recovery
 
-Status: verified (2026-09-03); manual provider smoke remains required before
-Delivery slice 2.
+Status: verified (2026-09-03); the manual provider smoke also passed and the
+path may proceed to Delivery slice 2 after the follow-up below is tracked.
 
 The root integrator requested elevated access for the actual compiled Pi runtime
 command, ran the documented offline frozen-lockfile setup and emitted Node test
-suite in that same environment, and recorded 28 passing tests with zero
-failures.
+suite in that same environment, and recorded 31 passing tests with zero
+failures. The Python suite recorded 138 passing tests and one expected skip.
+The same adult-supervised live request then completed on its second bounded
+session, producing two successful candidates with renders and LDraw artifacts.
 The unresolved local package-link report is not a product diagnosis and must
 not be handed to the owner as an action item. If elevation is denied or the
 runtime suite still fails after correct elevated setup, retain the exact output
 as a reproducible verification failure and stop this delivery path pending
 root investigation.
+
+#### Delivery slice 1 follow-up: isolate proposal artifacts and propagate palette color
+
+Status: planned; address before treating live run directories as polished,
+reusable evidence or relying on model-requested colors.
+
+The live smoke exposed two bounded implementation gaps:
+
+- each repair proposal writes candidate directories beneath the same run root,
+  while later proposals overwrite the root-level candidate index. Historical
+  proposal directories therefore remain mixed with the final candidate set;
+- the model's source hex color is retained in concept and bridge evidence, but
+  the LEGOization bridges currently default every emitted part to LDraw color
+  `4` (Red), so a requested supported color such as Green is silently replaced.
+
+Acceptance gates:
+
+- each proposal is either isolated under an explicit attempt/proposal evidence
+  path or removed from the final presentation with a manifest that clearly
+  distinguishes historical evidence from the final candidate set;
+- a supported requested color is mapped deterministically to the palette's
+  LDraw color code, recorded as both source and mapped color, and applied to
+  every emitted part; unsupported or ambiguous colors fail explicitly rather
+  than silently falling back to Red;
+- failed historical candidates retain their diagnostics and do not receive
+  `final.ldr`, while the final selection-ready index references only the latest
+  successful candidates;
+- focused regression tests cover proposal artifact isolation, green-color
+  propagation, and the existing no-ranking/no-automatic-selection boundary.
+
+Explicit non-goals: ranking or automatic selection, expanded geometry families,
+arbitrary colors outside the supported palette, inventory claims, purchasing,
+publishing, or child-facing UI changes.
 
 ### Delivery slice 2: live focused redesign of a selected concept
 
