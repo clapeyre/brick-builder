@@ -5,7 +5,7 @@ from unittest.mock import patch
 from pathlib import Path
 
 import brick_builder.fixture_demo_selector as selector
-from brick_builder.fixture_demo_selector import FixtureDemoController, FixtureDemoApp, tk
+from brick_builder.fixture_demo_selector import FixtureDemoController, FixtureDemoApp, _rasterize_faces, tk
 
 
 class FixtureDemoControllerTests(unittest.TestCase):
@@ -73,6 +73,23 @@ class FixtureDemoControllerTests(unittest.TestCase):
             self.assertGreater(stepped[-1].center[1], stepped[0].center[1])
             gatehouse = controller._preview_blocks("gatehouse")
             self.assertGreater(gatehouse[-1].center[1], gatehouse[0].center[1])
+
+    def test_raster_preview_uses_depth_not_face_input_order_for_overlap(self):
+        far = {
+            "points": ((1, 1), (11, 1), (11, 9), (1, 9)),
+            "depth_points": (1, 1, 1, 1),
+            "depth": 1,
+            "color": "#c91a09",
+        }
+        near = {
+            "points": ((6, 1), (15, 1), (15, 9), (6, 9)),
+            "depth_points": (2, 2, 2, 2),
+            "depth": 2,
+            "color": "#0055bf",
+        }
+        pixels = _rasterize_faces((near, far), width=16, height=10)
+        self.assertEqual(pixels[5][3], "#c91a09")
+        self.assertEqual(pixels[5][8], "#0055bf")
 
     def test_preview_rotation_is_independent_and_reset_is_exact(self):
         with tempfile.TemporaryDirectory() as directory:

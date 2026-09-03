@@ -281,6 +281,7 @@ def project_box(
             {
                 "name": name,
                 "points": points,
+                "depth_points": tuple(corners[index][2] for index in indices),
                 "depth": depth,
                 "color": _shade_color(block.color, shading),
                 "block_id": block.id,

@@ -40,6 +40,7 @@ _PREVIEW_PADDING = 20
 _DEFAULT_YAW = -35.0
 _DEFAULT_PITCH = 25.0
 _BOX_CORNERS = tuple((sx, sy, sz) for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1))
+_PREVIEW_BACKGROUND = "#f6f7fb"
 
 
 def _next_directory(parent: Path, stem: str) -> Path:
@@ -50,6 +51,61 @@ def _next_directory(parent: Path, stem: str) -> Path:
         if not candidate.exists():
             return candidate
         number += 1
+
+
+def _point_in_polygon(x: float, y: float, points: tuple[tuple[float, float], ...]) -> bool:
+    """Return whether a screen point is inside a projected convex face."""
+    inside = False
+    for first, second in zip(points, points[1:] + points[:1]):
+        x1, y1 = first
+        x2, y2 = second
+        if (y1 > y) != (y2 > y):
+            crossing_x = (x2 - x1) * (y - y1) / (y2 - y1) + x1
+            if x < crossing_x:
+                inside = not inside
+    return inside
+
+
+def _face_depth_at(face: dict[str, Any], x: float, y: float) -> float:
+    """Interpolate the orthographic depth of a projected planar face."""
+    points = tuple(face["points"])
+    depths = tuple(face["depth_points"])
+    (x0, y0), (x1, y1), (x2, y2) = points[:3]
+    determinant = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0)
+    if abs(determinant) <= 1e-9:
+        return float(face["depth"])
+    d0, d1, d2 = depths[:3]
+    slope_x = ((d1 - d0) * (y2 - y0) - (d2 - d0) * (y1 - y0)) / determinant
+    slope_y = ((x1 - x0) * (d2 - d0) - (x2 - x0) * (d1 - d0)) / determinant
+    return d0 + slope_x * (x - x0) + slope_y * (y - y0)
+
+
+def _rasterize_faces(
+    faces: tuple[dict[str, Any], ...],
+    *,
+    width: int = _PREVIEW_WIDTH,
+    height: int = _PREVIEW_HEIGHT,
+    background: str = _PREVIEW_BACKGROUND,
+) -> tuple[tuple[str, ...], ...]:
+    """Resolve projected faces with a small deterministic software depth buffer."""
+    pixels = [[background for _ in range(width)] for _ in range(height)]
+    depths = [[float("-inf") for _ in range(width)] for _ in range(height)]
+    for face in faces:
+        points = tuple(face["points"])
+        min_x = max(0, math.floor(min(x for x, _ in points)))
+        max_x = min(width - 1, math.ceil(max(x for x, _ in points)))
+        min_y = max(0, math.floor(min(y for _, y in points)))
+        max_y = min(height - 1, math.ceil(max(y for _, y in points)))
+        for pixel_y in range(min_y, max_y + 1):
+            for pixel_x in range(min_x, max_x + 1):
+                sample_x, sample_y = pixel_x + 0.5, pixel_y + 0.5
+                if not _point_in_polygon(sample_x, sample_y, points):
+                    continue
+                depth = _face_depth_at(face, sample_x, sample_y)
+                if depth > depths[pixel_y][pixel_x]:
+                    depths[pixel_y][pixel_x] = depth
+                    pixels[pixel_y][pixel_x] = face["color"]
+    return tuple(tuple(row) for row in pixels)
 
 
 class FixtureDemoController:
@@ -222,6 +278,7 @@ class FixtureDemoApp:
         self.canvases: dict[str, Any] = {}
         self.select_buttons: dict[str, Any] = {}
         self.reset_buttons: dict[str, Any] = {}
+        self.preview_images: dict[str, Any] = {}
         self._drag_start: dict[str, tuple[float, float]] = {}
         for candidate_id, label in (
             ("compact-box", "Compact tower"),
@@ -253,10 +310,7 @@ class FixtureDemoApp:
         try:
             self.controller.create_tower_choices()
             for candidate_id, canvas in self.canvases.items():
-                canvas.delete("all")
-                for face in self.controller.preview_faces(candidate_id):
-                    points = [coordinate for point in face["points"] for coordinate in point]
-                    canvas.create_polygon(*points, fill=face["color"], outline="#26354a")
+                self._draw_preview(candidate_id)
                 self.select_buttons[candidate_id].configure(state="normal")
                 self.reset_buttons[candidate_id].configure(state="normal")
             self.status.set("Drag either tower to rotate it, or choose one. Selection writes a fresh auditable bundle.")
@@ -288,9 +342,13 @@ class FixtureDemoApp:
     def _draw_preview(self, candidate_id: str) -> None:
         canvas = self.canvases[candidate_id]
         canvas.delete("all")
-        for face in self.controller.preview_faces(candidate_id):
-            points = [coordinate for point in face["points"] for coordinate in point]
-            canvas.create_polygon(*points, fill=face["color"], outline="#26354a")
+        faces = self.controller.preview_faces(candidate_id)
+        image = tk.PhotoImage(width=_PREVIEW_WIDTH, height=_PREVIEW_HEIGHT)
+        rows = _rasterize_faces(faces)
+        for row_index, row in enumerate(rows):
+            image.put("{" + " ".join(row) + "}", to=(0, row_index))
+        canvas.create_image(0, 0, anchor="nw", image=image)
+        self.preview_images[candidate_id] = image
 
     def _select(self, candidate_id: str) -> None:
         try:

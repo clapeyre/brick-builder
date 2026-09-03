@@ -935,6 +935,47 @@ Observed results (2026-09-03):
   selector tests pass including the real Tk smoke, byte-compilation, and diff
   checks pass.
 
+#### 4A selector follow-up: depth-buffered preview occlusion
+
+Status: verified (2026-09-03).
+
+Correct remaining visual clipping in the comparison canvases. The current
+orthographic face list is deterministic and back-to-front, but a painter
+order cannot resolve every overlap between projected cuboid panels. Add a
+small UI-local software depth buffer that chooses the nearest visible face at
+each preview pixel, while retaining the existing face projection contract for
+tests and other consumers.
+
+Acceptance gates:
+
+- overlapping stepped and gatehouse panels are occluded according to their
+  projected depth rather than whichever polygon was drawn last;
+- the default and dragged previews remain bounded, upright, deterministic,
+  and visually distinguishable, with no change to canonical model artifacts;
+- startup/failed-generation controls, independent drag/reset state, and
+  explicit selection remain unchanged;
+- focused raster-occlusion tests, the full Python suite, byte-compilation,
+  diff checks, and a desktop Tk smoke pass.
+
+Explicit non-goals: new geometry, camera redesign, photorealistic rendering,
+free-text generation, candidate ranking, child testing, Studio automation,
+export, purchasing, publishing, or changes to the local-redesign coordinate
+convention.
+
+Observed results (2026-09-03):
+
+- the comparison canvases now resolve each pixel against the projected face
+  depth, so nearer stepped and gatehouse panels occlude farther faces even
+  when the input polygon order is reversed;
+- depth interpolation uses the existing orthographic projection and leaves
+  canonical models, camera state, fitting, drag/reset, and selection artifacts
+  unchanged;
+- a focused overlapping-face regression passes, along with the existing
+  orientation, candidate, and selection coverage;
+- 139 Python tests pass with one known bundled-runtime Tk skip, 9 desktop
+  selector tests pass including the real Tk smoke, byte-compilation, and diff
+  checks pass.
+
 ### Milestone 3D: Pi parity slice
 
 #### 3D first bounded slice: offline Pi domain-tool contract
