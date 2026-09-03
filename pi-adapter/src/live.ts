@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { runConfiguredLiveConceptToCandidate } from "./live_run.js";
 
 function usage(): string {
-  return "Usage: pnpm live --config <outside-repo-config.json> --run-root <fresh-run-dir> [--max-attempts 1-3] [--python <python>] <ordinary request>";
+  return "Usage: pnpm live [--config <outside-repo-config.json>] --run-root <fresh-run-dir> [--max-attempts 1-3] [--python <python>] <ordinary request>";
 }
 
 export async function main(argv = process.argv.slice(2)): Promise<number> {
@@ -21,10 +21,10 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     else if (arg === "--help" || arg === "-h") { console.log(usage()); return 0; }
     else request.push(arg);
   }
-  if (!configPath || !runRoot || request.length === 0) { console.error(usage()); return 2; }
+  if (!runRoot || request.length === 0) { console.error(usage()); return 2; }
   try {
     const outcome = await runConfiguredLiveConceptToCandidate({
-      configPath: resolve(configPath),
+      configPath: configPath ? resolve(configPath) : undefined,
       runRoot: resolve(runRoot),
       request: request.join(" "),
       maxAttempts,

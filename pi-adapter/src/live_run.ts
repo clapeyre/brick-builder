@@ -64,7 +64,7 @@ export type LiveRunOptions = {
 export type ConfiguredLiveRunOptions = {
   runRoot: string;
   request: string;
-  configPath: string;
+  configPath?: string;
   adapterOptions?: Omit<RunnerOptions, "runRoot">;
   maxAttempts?: number;
   signal?: AbortSignal;
@@ -233,25 +233,30 @@ function selectionReadyIndex(candidateSet: Record<string, unknown>): Record<stri
   };
 }
 
-async function runConfiguredPiSession(context: LiveRunContext, config: LiveRunConfig, environment: NodeJS.ProcessEnv): Promise<LiveRunResult> {
-  if (config.apiKeyEnv && !environment[config.apiKeyEnv]) return { status: "provider-failure", message: `configured credential environment variable ${config.apiKeyEnv} is not set` };
-  const authPath = config.authPath ? resolve(config.authPath) : join(homedir(), ".pi", "agent", "auth.json");
-  const runtime = await ModelRuntime.create({
-    authPath,
+async function runConfiguredPiSession(context: LiveRunContext, config: LiveRunConfig | undefined, environment: NodeJS.ProcessEnv): Promise<LiveRunResult> {
+  if (config?.apiKeyEnv && !environment[config.apiKeyEnv]) return { status: "provider-failure", message: `configured credential environment variable ${config.apiKeyEnv} is not set` };
+  const globalAgentDir = join(homedir(), ".pi", "agent");
+  const runtime = await ModelRuntime.create(config ? {
+    authPath: config.authPath ? resolve(config.authPath) : undefined,
     modelsPath: null,
     allowModelNetwork: false,
     refreshOnCreate: false,
-  });
-  const providerConfig: Record<string, unknown> = {
-    name: config.name ?? config.provider,
-    baseUrl: config.baseUrl,
-    api: config.api,
-    models: [{ id: config.model, name: config.model, api: config.api, reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 4096 }],
-  };
-  if (config.apiKeyEnv) providerConfig.apiKey = `$${config.apiKeyEnv}`;
-  runtime.registerProvider(config.provider, providerConfig as any);
-  const model = runtime.getModel(config.provider, config.model);
-  if (!model) return { status: "provider-failure", message: "configured provider did not expose the requested model" };
+  } : { allowModelNetwork: false, refreshOnCreate: false });
+  const settingsManager = SettingsManager.create(context.runRoot, globalAgentDir);
+  if (config) {
+    const providerConfig: Record<string, unknown> = {
+      name: config.name ?? config.provider,
+      baseUrl: config.baseUrl,
+      api: config.api,
+      models: [{ id: config.model, name: config.model, api: config.api, reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 4096 }],
+    };
+    if (config.apiKeyEnv) providerConfig.apiKey = `$${config.apiKeyEnv}`;
+    runtime.registerProvider(config.provider, providerConfig as any);
+  }
+  const provider = config?.provider ?? settingsManager.getDefaultProvider();
+  const modelId = config?.model ?? settingsManager.getDefaultModel();
+  const model = provider && modelId ? runtime.getModel(provider, modelId) : runtime.getModels()[0];
+  if (!model) return { status: "provider-failure", message: config ? "configured provider did not expose the requested model" : "global Pi settings did not select an available model" };
   const sessionOptions: CreateAgentSessionOptions = {
     ...context.sessionOptions,
     cwd: context.runRoot,
@@ -260,7 +265,7 @@ async function runConfiguredPiSession(context: LiveRunContext, config: LiveRunCo
     modelRuntime: runtime,
     model,
     sessionManager: SessionManager.inMemory(context.runRoot),
-    settingsManager: SettingsManager.create(context.runRoot, join(homedir(), ".pi", "agent")),
+    settingsManager,
   };
   const sessionResult = await createAgentSession(sessionOptions);
   const events: unknown[] = [];
@@ -321,16 +326,16 @@ async function runConfiguredPiSession(context: LiveRunContext, config: LiveRunCo
   return { status: "failure", message: "model did not submit a valid candidate set or one actionable clarification", feedback: [{ code: "LIVE_CONTRACT_NOT_SATISFIED" }], trajectory: events };
 }
 
-/** Run one real, adult-configured provider using credentials supplied only by environment. */
+/** Run one real, adult-configured provider using global Pi settings or an explicit override. */
 export async function runConfiguredLiveConceptToCandidate(options: ConfiguredLiveRunOptions): Promise<LiveRunOutcome> {
-  const config = await readLiveRunConfig(options.configPath);
+  const config = options.configPath ? await readLiveRunConfig(options.configPath) : undefined;
   const environment = options.environment ?? process.env;
   return runLiveConceptToCandidate({
     runRoot: options.runRoot,
     request: options.request,
     adapterOptions: options.adapterOptions,
-    provider: config.provider,
-    model: config.model,
+    provider: config?.provider,
+    model: config?.model,
     maxAttempts: options.maxAttempts,
     signal: options.signal,
     sessionFactory: async () => async (context) => runConfiguredPiSession(context, config, environment),

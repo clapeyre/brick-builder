@@ -7,8 +7,11 @@ directory. It does not select a candidate or expose shell/filesystem tools.
 
 ## Configure outside the repository
 
-Create a provider configuration somewhere outside this repository. The file
-contains no credential. By default, the runner reads Pi credentials from the
+Optionally create a provider configuration somewhere outside this repository.
+The file contains no credential. Without `--config`, the runner inherits the
+current user's global Pi provider/model selection, auth, and model catalog.
+With a config file, the runner uses that adult-supplied provider definition.
+By default, credentials are read from the
 current user's `$HOME/.pi/agent/auth.json` (on Windows,
 `C:\Users\<user>\.pi\agent\auth.json`). An optional `apiKeyEnv` can be used
 instead when environment-based authentication is preferred.
@@ -28,13 +31,17 @@ repository, the configuration committed here, or a run artifact.
 
 ## Run
 
-From `pi-adapter`, use a new caller-owned run directory for each attempt. With
-credentials in the default Pi `auth.json`, no environment-variable command is
-needed:
+From the repository root, use a new caller-owned run directory for each
+attempt. With credentials in the default Pi `auth.json`, no config file or
+environment-variable command is needed:
 
 ```powershell
-pnpm live --config "C:\path\outside\brick-builder\provider.json" --run-root "C:\path\to\runs\live-001" "Make a tiny red lookout tower"
+$run = Join-Path $env:TEMP ("brick-builder-live-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
+pnpm --dir .\pi-adapter live --run-root $run "Make a tiny red lookout tower"
 ```
+
+An optional `--config` file can still override the global provider/model
+definition when a deliberate alternate setup is needed.
 
 The runner reads both the global `auth.json` and `settings.json`, while still
 explicitly allowlisting only the Brick Builder domain tools for this session.
