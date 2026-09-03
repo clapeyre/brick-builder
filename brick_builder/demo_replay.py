@@ -47,7 +47,10 @@ def _render(model: dict[str, Any], palette: dict[str, Any], path: Path, yaw: flo
     for placement in model["parts"]:
         profile = profiles[placement["part"]]
         bbox, _, _ = transformed_profile(profile, placement)
-        block = Block(placement["id"], ((bbox[0] + bbox[3]) / 2, (bbox[1] + bbox[4]) / 2, (bbox[2] + bbox[5]) / 2), (bbox[3] - bbox[0], bbox[4] - bbox[1], bbox[5] - bbox[2]), COLOURS.get(placement["colour"], "#888888"))
+        # Canonical LDraw coordinates use +Y downward, while the generic
+        # orthographic projector uses +Y upward.  Normalize that axis at the
+        # canonical-render boundary so stacked parts and painter depth agree.
+        block = Block(placement["id"], ((bbox[0] + bbox[3]) / 2, -(bbox[1] + bbox[4]) / 2, (bbox[2] + bbox[5]) / 2), (bbox[3] - bbox[0], bbox[4] - bbox[1], bbox[5] - bbox[2]), COLOURS.get(placement["colour"], "#888888"))
         for face in project_box(block, yaw=yaw, pitch=pitch, width=640, height=480, scale=3.2):
             points = " ".join(f"{x:.2f},{y:.2f}" for x, y in face["points"])
             faces.append((face["depth"], placement["id"], face["points"], f'<polygon points="{points}" fill="{face["color"]}" stroke="#26354a" stroke-width="1"/>'))

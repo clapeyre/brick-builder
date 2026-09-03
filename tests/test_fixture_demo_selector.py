@@ -62,6 +62,18 @@ class FixtureDemoControllerTests(unittest.TestCase):
                 self.assertGreater(max(x for x, _ in points) - min(x for x, _ in points), 100)
                 self.assertGreater(max(y for _, y in points) - min(y for _, y in points), 100)
 
+    def test_canonical_vertical_axis_is_upright_for_all_candidates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            controller = FixtureDemoController(directory)
+            controller.create_tower_choices()
+            for candidate_id in controller.candidate_ids:
+                blocks = controller._preview_blocks(candidate_id)
+                self.assertGreater(max(block.center[1] for block in blocks), min(block.center[1] for block in blocks))
+            stepped = controller._preview_blocks("stepped-box")
+            self.assertGreater(stepped[-1].center[1], stepped[0].center[1])
+            gatehouse = controller._preview_blocks("gatehouse")
+            self.assertGreater(gatehouse[-1].center[1], gatehouse[0].center[1])
+
     def test_preview_rotation_is_independent_and_reset_is_exact(self):
         with tempfile.TemporaryDirectory() as directory:
             controller = FixtureDemoController(directory)

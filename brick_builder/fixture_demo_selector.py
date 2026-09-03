@@ -124,7 +124,12 @@ class FixtureDemoController:
         for placement in model["parts"]:
             profile = profiles[placement["part"]]
             bbox, _, _ = transformed_profile(profile, placement)
-            blocks.append(Block(placement["id"], ((bbox[0] + bbox[3]) / 2, (bbox[1] + bbox[4]) / 2, (bbox[2] + bbox[5]) / 2), (bbox[3] - bbox[0], bbox[4] - bbox[1], bbox[5] - bbox[2]), _COLOURS.get(placement["colour"], "#888888")))
+            # Canonical LDraw coordinates use +Y downward.  The generic
+            # orthographic projector uses +Y upward, so invert only the
+            # vertical center at this representation boundary.  The size is
+            # unchanged; this keeps the generated model's face depths and
+            # global back-to-front painter order consistent with the display.
+            blocks.append(Block(placement["id"], ((bbox[0] + bbox[3]) / 2, -(bbox[1] + bbox[4]) / 2, (bbox[2] + bbox[5]) / 2), (bbox[3] - bbox[0], bbox[4] - bbox[1], bbox[5] - bbox[2]), _COLOURS.get(placement["colour"], "#888888")))
         return tuple(blocks)
 
     def preview_state(self, candidate_id: str) -> dict[str, float]:

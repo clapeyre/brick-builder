@@ -893,6 +893,48 @@ Observed results (2026-09-02):
 - 82 Python tests, byte-compilation, and diff checks pass. The bundled runtime
   skips the widget smoke solely because its Tcl/Tk data cannot initialize.
 
+#### 4A selector follow-up: canonical vertical orientation and face ordering
+
+Status: verified (2026-09-03).
+
+Correct the fixture selector's projection boundary for canonical LDraw
+coordinates. LDraw model bounds use positive Y downward, while the generic
+box projector's screen convention uses positive Y upward; the adapter must
+normalize that axis before projecting the generated candidate models. Preserve
+the existing bounded camera controls and ensure the resulting painter order
+does not make visible panels appear in front of nearer geometry.
+
+Acceptance gates:
+
+- the three generated candidates appear upright at the default three-quarter
+  view, with upper courses and the gatehouse bridge above their supports;
+- visible faces are drawn back-to-front for the normalized canonical geometry,
+  with regression coverage for overlapping stepped and gatehouse panels;
+- drag, reset, fitting, candidate order, explicit selection, and selection
+  artifacts remain unchanged;
+- focused projection/selector tests, the full Python suite, byte-compilation,
+  diff checks, and a desktop Tk smoke pass.
+
+Explicit non-goals: new geometry, camera redesign, photorealistic rendering,
+free-text generation, candidate ranking, child testing, Studio automation,
+export, purchasing, publishing, or changes to the local-redesign coordinate
+convention.
+
+Observed results (2026-09-03):
+
+- canonical LDraw candidate bounds now invert only the vertical center at the
+  selector/render boundary, so the upper courses and gatehouse bridge project
+  above their supports without changing canonical files or local-redesign
+  coordinates;
+- the deterministic SVG render path uses the same normalization, keeping its
+  face depth order consistent with the comparison previews;
+- a regression test covers upright compact, stepped, and gatehouse candidates;
+  the existing global face-depth sort, drag/reset, fitting, candidate order,
+  and explicit selection behavior remain intact;
+- 138 Python tests pass with one known bundled-runtime Tk skip, 8 desktop
+  selector tests pass including the real Tk smoke, byte-compilation, and diff
+  checks pass.
+
 ### Milestone 3D: Pi parity slice
 
 #### 3D first bounded slice: offline Pi domain-tool contract
