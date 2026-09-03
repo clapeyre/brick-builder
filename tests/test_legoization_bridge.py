@@ -2,6 +2,7 @@ import pytest
 from pathlib import Path
 
 from brick_builder.legoization_bridge import legoize_accepted_box
+from brick_builder.stepped_legoization_bridge import legoize_accepted_stepped_boxes
 from brick_builder.palette import load_palette
 from brick_builder.spatial_concept import GenericBoxConcept
 from brick_builder.local_redesign import Block
@@ -47,3 +48,40 @@ class TestLEGOizationBridge:
         result = legoize_accepted_box(concept(("box", (0, 1, 0), (2, 2, 2), "#2878b5")), PALETTE)
         assert result.snapshot()["source_concept"]["geometry"][0]["ref"] == "box"
         assert "compiled_ldr" in result.snapshot()["assembly"]
+
+    def test_supported_green_maps_to_ldraw_code_two(self):
+        result = legoize_accepted_box(concept(("box", (0, 1, 0), (2, 2, 2), "#2e8b57")), PALETTE)
+        assert result.success
+        assert result.mapping["source_color"] == "#2e8b57"
+        assert result.mapping["mapped_colour"] == 2
+        assert all(line.split()[1] == "2" for line in result.compiled_ldr.splitlines() if line.startswith("1 "))
+
+    @pytest.mark.parametrize("colour, diagnostic", [("#123456", "COLOUR_UNSUPPORTED")])
+    def test_rejects_source_colour_that_is_not_supported(self, colour, diagnostic):
+        result = legoize_accepted_box(concept(("box", (0, 1, 0), (2, 2, 2), colour)), PALETTE)
+        assert not result.success
+        assert result.mapping is None
+        assert any(diagnostic in item for item in result.diagnostics)
+
+    def test_rejects_mixed_colours_as_ambiguous(self):
+        value = GenericBoxConcept(
+            "bridge-test", "Bridge test",
+            (Block("base", (0, 1, 0), (4, 2, 2), "#237841"), Block("upper", (0, 3, 0), (2, 2, 2), "#c91a09")),
+            {"camera": "three-quarter", "geometry_refs": ["base", "upper"]},
+        )
+        result = legoize_accepted_stepped_boxes(value, PALETTE)
+        assert not result.success
+        assert any("COLOUR_AMBIGUOUS" in item for item in result.diagnostics)
+
+    def test_source_green_maps_to_palette_and_every_part(self):
+        result = legoize_accepted_box(concept(("box", (0, 2, 0), (4, 4, 2), "#2ca02c")), PALETTE)
+        assert result.success
+        assert result.mapping["source_color"] == "#2ca02c"
+        assert result.mapping["mapped_colour"] == 2
+        assert {part["colour"] for part in result.legoization.model["parts"]} == {2}
+
+    def test_unsupported_source_colour_is_rejected_without_fallback(self):
+        result = legoize_accepted_box(concept(("box", (0, 1, 0), (2, 2, 2), "#123456")), PALETTE)
+        assert not result.success
+        assert result.legoization is None
+        assert any("COLOUR_UNSUPPORTED" in diagnostic for diagnostic in result.diagnostics)

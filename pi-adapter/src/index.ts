@@ -7,7 +7,7 @@ import { createAgentSession, defineTool, ModelRuntime, SessionManager, SettingsM
 import { fauxAssistantMessage, fauxProvider, fauxToolCall, type FauxResponseStep } from "@earendil-works/pi-ai";
 
 export type DomainOperation = "catalog" | "validate" | "analyze" | "compile" | "demo-generate" | "demo-candidate-set" | "select-candidate" | "submit-brief" | "request-candidates" | "spatial-concepts" | "concept-redesign" | "legoize-concept" | "legoize-stepped-concept" | "legoize-gatehouse-concept" | "concept-candidate-set" | "select-concept-candidate" | "selected-candidate-redesign";
-export type RunnerOptions = { runRoot: string; python?: string; repositoryRoot?: string; signal?: AbortSignal };
+export type RunnerOptions = { runRoot: string; python?: string; repositoryRoot?: string; signal?: AbortSignal; isolateCandidateProposals?: boolean };
 export type CommandResult = { valid: boolean; [key: string]: unknown };
 
 const operations = ["catalog", "validate", "analyze", "compile", "demo-generate", "demo-candidate-set", "select-candidate", "submit-brief", "request-candidates", "spatial-concepts", "concept-redesign", "legoize-concept", "legoize-stepped-concept", "legoize-gatehouse-concept", "concept-candidate-set", "select-concept-candidate", "selected-candidate-redesign"] as const;
@@ -57,6 +57,7 @@ async function invoke(args: string[], options: RunnerOptions, ensureRoot = true)
 
 export class BrickBuilderAdapter {
   readonly runRoot: string;
+  private candidateProposalCount = 0;
   constructor(private readonly options: RunnerOptions) { this.runRoot = resolve(options.runRoot); }
 
   async catalog(): Promise<CommandResult> {
@@ -153,36 +154,56 @@ export class BrickBuilderAdapter {
     return invoke(args, this.options);
   }
 
-  async legoizeConcept(concept: Record<string, unknown>, colour = 4): Promise<CommandResult> {
+  async legoizeConcept(concept: Record<string, unknown>, colour?: number): Promise<CommandResult> {
     const conceptPath = contained(this.runRoot, resolve(this.runRoot, "accepted-concept-for-legoization.json"));
     await writeFile(conceptPath, JSON.stringify(concept, null, 2) + "\n", "utf8");
-    return invoke(["legoize-concept", "--concept", conceptPath, "--run-dir", this.runRoot, "--colour", String(colour)], this.options);
+    return invoke(["legoize-concept", "--concept", conceptPath, "--run-dir", this.runRoot, ...(colour === undefined ? [] : ["--colour", String(colour)])], this.options);
   }
 
-  async legoizeSteppedConcept(concept: Record<string, unknown>, colour = 4): Promise<CommandResult> {
+  async legoizeSteppedConcept(concept: Record<string, unknown>, colour?: number): Promise<CommandResult> {
     const conceptPath = contained(this.runRoot, resolve(this.runRoot, "accepted-stepped-concept.json"));
     await writeFile(conceptPath, JSON.stringify(concept, null, 2) + "\n", "utf8");
-    return invoke(["legoize-stepped-concept", "--concept", conceptPath, "--run-dir", this.runRoot, "--colour", String(colour)], this.options);
+    return invoke(["legoize-stepped-concept", "--concept", conceptPath, "--run-dir", this.runRoot, ...(colour === undefined ? [] : ["--colour", String(colour)])], this.options);
   }
 
-  async legoizeGatehouseConcept(concept: Record<string, unknown>, colour = 4): Promise<CommandResult> {
+  async legoizeGatehouseConcept(concept: Record<string, unknown>, colour?: number): Promise<CommandResult> {
     const conceptPath = contained(this.runRoot, resolve(this.runRoot, "accepted-gatehouse-concept.json"));
     await writeFile(conceptPath, JSON.stringify(concept, null, 2) + "\n", "utf8");
-    return invoke(["legoize-gatehouse-concept", "--concept", conceptPath, "--run-dir", this.runRoot, "--colour", String(colour)], this.options);
+    return invoke(["legoize-gatehouse-concept", "--concept", conceptPath, "--run-dir", this.runRoot, ...(colour === undefined ? [] : ["--colour", String(colour)])], this.options);
   }
 
   async conceptCandidateSet(requestText: string, concepts: Array<Record<string, unknown>>): Promise<CommandResult> {
     if (typeof requestText !== "string" || !requestText.trim()) throw new Error("request must be a non-empty string");
-    const requestPath = contained(this.runRoot, resolve(this.runRoot, "candidate-request.txt"));
-    const conceptsPath = contained(this.runRoot, resolve(this.runRoot, "candidate-concepts.json"));
+    const proposalRoot = this.options.isolateCandidateProposals
+      ? contained(this.runRoot, resolve(this.runRoot, "proposals", `proposal-${String(++this.candidateProposalCount).padStart(2, "0")}`))
+      : this.runRoot;
+    await mkdir(proposalRoot, { recursive: true });
+    const requestPath = contained(proposalRoot, resolve(proposalRoot, "candidate-request.txt"));
+    const conceptsPath = contained(proposalRoot, resolve(proposalRoot, "candidate-concepts.json"));
     await writeFile(requestPath, requestText, "utf8");
     await writeFile(conceptsPath, JSON.stringify(concepts, null, 2) + "\n", "utf8");
-    return invoke(["concept-candidate-set", "--request", requestPath, "--concepts", conceptsPath, "--run-dir", this.runRoot], this.options);
+    return invoke(["concept-candidate-set", "--request", requestPath, "--concepts", conceptsPath, "--run-dir", proposalRoot], { ...this.options, runRoot: proposalRoot });
+  }
+
+  private async composedCandidateSetPath(): Promise<string> {
+    const fallback = contained(this.runRoot, resolve(this.runRoot, "candidate-set.json"));
+    const selectionReady = contained(this.runRoot, resolve(this.runRoot, "selection-ready.json"));
+    let raw: string;
+    try {
+      raw = await readFile(selectionReady, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return fallback;
+      throw error;
+    }
+    const value = JSON.parse(raw) as Record<string, unknown>;
+    return typeof value.candidate_set_path === "string"
+      ? contained(this.runRoot, resolve(this.runRoot, value.candidate_set_path))
+      : fallback;
   }
 
   async selectConceptCandidate(candidateId: string): Promise<CommandResult> {
     if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,47}$/.test(candidateId)) throw new Error("candidate id must be a safe stable identifier");
-    const candidateSet = contained(this.runRoot, resolve(this.runRoot, "candidate-set.json"));
+    const candidateSet = await this.composedCandidateSetPath();
     const selectionRoot = contained(this.runRoot, resolve(this.runRoot, "selection"));
     return invoke(["select-concept-candidate", "--candidate-set", candidateSet, "--candidate-id", candidateId, "--run-dir", selectionRoot], this.options);
   }
@@ -191,7 +212,7 @@ export class BrickBuilderAdapter {
     const args = ["selected-candidate-redesign", operation, "--run-dir", this.runRoot];
     if (operation === "start") {
       if (!options.candidateId) throw new Error("candidate_id is required for redesign start");
-      const candidateSet = contained(this.runRoot, resolve(this.runRoot, "candidate-set.json"));
+      const candidateSet = await this.composedCandidateSetPath();
       args.push("--candidate-set", candidateSet, "--candidate-id", options.candidateId);
     }
     if (options.point) args.push("--point", JSON.stringify(options.point));
@@ -255,9 +276,9 @@ export function createBrickBuilderTools(adapter: BrickBuilderAdapter): ToolDefin
     tool("brick_request_candidates", "Request the declared offline candidate set for an accepted brief. No paths or ranking are model-controlled.", Type.Object({ family: Type.String() }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.requestCandidates(p.family)) }], details: {} })),
     tool("brick_spatial_concepts", "Submit a bounded model response for a natural-language spatial concept request. The raw request and fixed previews are retained under the run root.", Type.Object({ request: Type.String(), response: spatialResponseSchema }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.spatialConcepts(p.request, p.response)) }], details: {} })),
     tool("brick_concept_redesign", "Focus, lock, propose, retry, accept, or undo a local redesign of one accepted generic-box concept. State stays inside this run root.", conceptRedesignSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.conceptRedesign(p.operation, { concept: p.concept, requestText: p.request, point: p.point, radius: p.radius, blockId: p.block_id, instruction: p.instruction })) }], details: {} })),
-    tool("brick_legoize_concept", "LEGOize one accepted aligned generic-box concept through the deterministic one-box bridge. Coverage and structural validity remain separate evidence.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeConcept(p.concept, p.colour ?? 4)) }], details: {} })),
-    tool("brick_legoize_stepped_concept", "LEGOize one accepted centered two-tier generic-box concept through the deterministic stepped bridge. Coverage and structural validity remain separate evidence.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeSteppedConcept(p.concept, p.colour ?? 4)) }], details: {} })),
-    tool("brick_legoize_gatehouse_concept", "LEGOize one accepted bounded two-tower gatehouse concept through the deterministic gatehouse bridge. Coverage and structural validity remain separate evidence.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeGatehouseConcept(p.concept, p.colour ?? 4)) }], details: {} })),
+    tool("brick_legoize_concept", "LEGOize one accepted aligned generic-box concept through the deterministic one-box bridge. Coverage and structural validity remain separate evidence; when omitted, the source concept colour is mapped through the supported palette.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeConcept(p.concept, p.colour)) }], details: {} })),
+    tool("brick_legoize_stepped_concept", "LEGOize one accepted centered two-tier generic-box concept through the deterministic stepped bridge. Coverage and structural validity remain separate evidence; when omitted, the source concept colour is mapped through the supported palette.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeSteppedConcept(p.concept, p.colour)) }], details: {} })),
+    tool("brick_legoize_gatehouse_concept", "LEGOize one accepted bounded two-tower gatehouse concept through the deterministic gatehouse bridge. Coverage and structural validity remain separate evidence; when omitted, the source concept colour is mapped through the supported palette.", Type.Object({ concept: Type.Record(Type.String(), Type.Unknown()), colour: Type.Optional(Type.Integer({ minimum: 0 })) }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.legoizeGatehouseConcept(p.concept, p.colour)) }], details: {} })),
     tool("brick_concept_candidate_set", "Evaluate exactly two or three generic axis-aligned box concepts. Use this exact JSON shape: each concept must be {id, label, geometry, render}; each geometry item must be {ref, center:[x,y,z], size:[width,height,depth], color:#rrggbb}; render must be {camera: front|side|top|three-quarter, geometry_refs:[refs in the same order as geometry]}. Preserve the user's ordinary-language request in request. This evaluates in input order and never ranks or selects.", conceptCandidateSetSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.conceptCandidateSet(p.request, p.concepts)) }], details: {} })),
     tool("brick_select_concept_candidate", "Explicitly select one successful candidate by stable ID and write a provenance receipt.", Type.Object({ candidate_id: Type.String() }), async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.selectConceptCandidate(p.candidate_id)) }], details: {} })),
     tool("brick_selected_candidate_redesign", "Focus, lock, propose, retry, accept, or undo a redesign rooted at an explicitly selected composed candidate; acceptance revalidates the original LEGOization family.", selectedCandidateRedesignSchema, async (_id, p) => ({ content: [{ type: "text", text: JSON.stringify(await adapter.selectedCandidateRedesign(p.operation, { candidateId: p.candidate_id, point: p.point, radius: p.radius, blockId: p.block_id, instruction: p.instruction })) }], details: {} })),

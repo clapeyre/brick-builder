@@ -9,11 +9,12 @@ from typing import Any, Mapping
 
 from .legoization import LEGOizationResult, SteppedBoxScaffold, legoize_stepped_box
 from .palette import load_palette
+from .colour_mapping import resolve_concept_colour
 from .spatial_concept import GenericBoxConcept
 
 
 FORMAT = "brick-builder.stepped-legoization-bridge/v1"
-DEFAULT_COLOUR = 4
+DEFAULT_COLOUR = None
 MAX_WIDTH_STUDS = 16
 MAX_DEPTH_STUDS = 2
 MAX_HEIGHT_BRICKS = 4
@@ -86,7 +87,7 @@ def legoize_accepted_stepped_boxes(
     concept: GenericBoxConcept,
     palette: Mapping[str, Any] | str | PathLike[str],
     *,
-    colour: int = DEFAULT_COLOUR,
+    colour: int | None = DEFAULT_COLOUR,
 ) -> SteppedLEGOizationBridgeResult:
     """Map exactly two generic boxes to :func:`legoize_stepped_box`.
 
@@ -153,6 +154,10 @@ def legoize_accepted_stepped_boxes(
         return SteppedLEGOizationBridgeResult("rejected", source, None, tuple(diagnostics))
 
     palette_data = load_palette(palette) if isinstance(palette, (str, PathLike)) else dict(palette)
+    if colour is None:
+        colour, colour_error = resolve_concept_colour([box.color for box in concept.boxes], palette_data)
+        if colour_error:
+            return SteppedLEGOizationBridgeResult("rejected", source, None, (colour_error,))
     if colour not in {item.get("ldraw_code") for item in palette_data.get("colours", [])}:
         return SteppedLEGOizationBridgeResult(
             "rejected", source, None,
@@ -165,6 +170,8 @@ def legoize_accepted_stepped_boxes(
             "upper": {"source_ref": upper.id, "width_studs": upper_width, "height_bricks": upper_height, "depth_studs": upper_depth},
         },
         "origin": "centered at x=0,z=0 with grounded base at y=0",
+        "source_color": base.color,
+        "mapped_colour": colour,
         "ldraw_colour": colour,
     }
     lego = legoize_stepped_box(

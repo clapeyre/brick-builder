@@ -29,6 +29,7 @@ export type LiveRunConfig = {
 export type LiveRunContext = {
   request: string;
   runRoot: string;
+  attemptRoot: string;
   attempt: number;
   feedback: readonly unknown[];
   adapter: BrickBuilderAdapter;
@@ -128,9 +129,6 @@ export async function runLiveConceptToCandidate(options: LiveRunOptions): Promis
 
   await mkdir(runRoot, { recursive: true });
   if ((await readdir(runRoot)).length > 0) throw new Error("run root must be a fresh or empty caller-owned directory");
-  const adapter = new BrickBuilderAdapter({ runRoot, ...options.adapterOptions });
-  const domainTools = createBrickBuilderTools(adapter);
-  const sessionOptions = createPiSessionOptions(adapter);
   const requestPath = writeArtifactPath(runRoot, "request.json");
   const trajectoryPath = writeArtifactPath(runRoot, "trajectory.json");
   const artifactPath = writeArtifactPath(runRoot, "live-run.json");
@@ -146,7 +144,12 @@ export async function runLiveConceptToCandidate(options: LiveRunOptions): Promis
       final = { status: "failure", message: "operation cancelled" };
       break;
     }
-    const context: LiveRunContext = { request: options.request, runRoot, attempt: attempts, feedback, adapter, domainTools, sessionOptions, provider: options.provider, model: options.model };
+    const attemptRoot = writeArtifactPath(runRoot, `attempts/attempt-${String(attempts).padStart(2, "0")}`);
+    await mkdir(attemptRoot, { recursive: true });
+    const adapter = new BrickBuilderAdapter({ runRoot: attemptRoot, isolateCandidateProposals: true, ...options.adapterOptions });
+    const domainTools = createBrickBuilderTools(adapter);
+    const sessionOptions = createPiSessionOptions(adapter);
+    const context: LiveRunContext = { request: options.request, runRoot, attemptRoot, attempt: attempts, feedback, adapter, domainTools, sessionOptions, provider: options.provider, model: options.model };
     try {
       const runner = options.runner ?? await options.sessionFactory!(context);
       const result = await runner(context);
@@ -200,7 +203,7 @@ export async function readLiveRunConfig(path: string): Promise<LiveRunConfig> {
 const LIVE_SYSTEM_PROMPT = `You are the bounded Brick Builder concept proposer. Use only the explicitly supplied Brick Builder domain tool.
 Given the user's ordinary-language request, do exactly one of these:
 1. Ask one concise, actionable clarification question of at most 240 characters, and do not call a tool; or
-2. Call brick_concept_candidate_set with the original request and exactly two or three visibly distinct generic axis-aligned box concepts. Every concept must use this exact JSON shape: {"id":"stable-id","label":"short label","geometry":[{"ref":"box-ref","center":[0,1,0],"size":[4,2,4],"color":"#d71920"}],"render":{"camera":"three-quarter","geometry_refs":["box-ref"]}}. Use one to twelve geometry items, and keep geometry_refs in the same order. If deterministic feedback rejects the proposal, repair it in the same session, at most twice. Do not select a candidate, rank candidates, access files or the shell, or invent tools. After a tool result, summarize its deterministic status and diagnostics without claiming resemblance or physical buildability.`;
+2. Call brick_concept_candidate_set with the original request and exactly two or three visibly distinct generic axis-aligned box concepts. Every concept must use this exact JSON shape: {"id":"stable-id","label":"short label","geometry":[{"ref":"box-ref","center":[0,1,0],"size":[4,2,4],"color":"#d71920"}],"render":{"camera":"three-quarter","geometry_refs":["box-ref"]}}. Use one to twelve geometry items, and keep geometry_refs in the same order. Use only integer centers and integer positive sizes on the stud/brick grid. For a valid one-box layout, put the box center at [0,height/2,0]. For a valid two-box layout, use a grounded base and a smaller centered upper box: base center y=base height/2, upper center y=base height+upper height/2, with matching x/z centers. For a valid three-box gatehouse layout, use equal grounded towers and one centered bridge: tower centers x=+/-((bridge width-tower width)/2), tower center y=tower height/2, bridge center y=tower height+bridge height/2, and matching z/depth. Keep dimensions within the small bounded range implied by deterministic feedback. Use only these supported source colors: black #202124, blue #2878b5, green #2e8b57, red #d71920, yellow #f2cd37, white #ffffff, orange #f5a623, or lime #8dd35f. If deterministic feedback rejects the proposal, repair it in the same session, at most twice. Do not select a candidate, rank candidates, access files or the shell, or invent tools. After a tool result, summarize its deterministic status and diagnostics without claiming resemblance or physical buildability.`;
 
 function textFromMessage(message: any): string {
   return message?.content?.filter((part: any) => part.type === "text").map((part: any) => part.text).join("") ?? "";
@@ -217,18 +220,20 @@ function toolResultJson(result: any): Record<string, unknown> | undefined {
   }
 }
 
-function selectionReadyIndex(candidateSet: Record<string, unknown>): Record<string, unknown> | undefined {
+function selectionReadyIndex(candidateSet: Record<string, unknown>, artifactPrefix: string): Record<string, unknown> | undefined {
   const candidates = candidateSet.candidates;
   if (!Array.isArray(candidates) || ![2, 3].includes(candidates.length)) return undefined;
   if (!candidates.every((candidate) => candidate && typeof candidate === "object" && (candidate as any).status === "success" && typeof (candidate as any).id === "string")) return undefined;
+  const artifactBase = artifactPrefix ? `${artifactPrefix}/` : "";
   return {
     format: "brick-builder.selection-ready/v1",
     candidate_set_hash: candidateSet.candidate_set_hash,
+    candidate_set_path: `${artifactBase}candidate-set.json`,
     candidates: candidates.map((candidate: any) => ({
       id: candidate.id,
       family: candidate.family,
       model_id: candidate.model_id,
-      render_paths: [`candidates/${candidate.id}/render-front.svg`, `candidates/${candidate.id}/render-three-quarter.svg`, `candidates/${candidate.id}/final.ldr`],
+      render_paths: [`${artifactBase}candidates/${candidate.id}/render-front.svg`, `${artifactBase}candidates/${candidate.id}/render-three-quarter.svg`, `${artifactBase}candidates/${candidate.id}/final.ldr`],
     })),
   };
 }
@@ -310,10 +315,14 @@ async function runConfiguredPiSession(context: LiveRunContext, config: LiveRunCo
   }
   if (providerError) return { status: "provider-failure", message: "provider returned a terminal error", trajectory: events };
   if (!toolBudgetExceeded && unexpectedToolCalls === 0 && candidateToolCalls > 0 && candidateSet) {
-    const index = selectionReadyIndex(candidateSet);
+    const candidateRunDir = typeof candidateSet.run_dir === "string"
+      ? contained(context.runRoot, resolve(candidateSet.run_dir))
+      : context.attemptRoot;
+    const artifactPrefix = relative(context.runRoot, candidateRunDir).replaceAll("\\", "/");
+    const index = selectionReadyIndex(candidateSet, artifactPrefix);
     if (index) {
       await writeFile(writeArtifactPath(context.runRoot, "selection-ready.json"), JSON.stringify(index, null, 2) + "\n", "utf8");
-      return { status: "success", trajectory: events, artifacts: { candidate_set: "candidate-set.json", selection_ready: "selection-ready.json", candidate_count: (index.candidates as unknown[]).length } };
+      return { status: "success", trajectory: events, artifacts: { candidate_set: `${artifactPrefix}/candidate-set.json`, selection_ready: "selection-ready.json", candidate_count: (index.candidates as unknown[]).length } };
     }
     return { status: "failure", message: "candidate composition was rejected or did not yield two or three valid candidates", feedback: [toolResultJson(candidateSet) ?? { code: "CANDIDATE_SET_INVALID" }], trajectory: events };
   }

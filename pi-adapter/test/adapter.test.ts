@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, stat } from "node:fs/promises";
+import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
@@ -38,6 +38,30 @@ test("the documented candidate shape succeeds through the live tool adapter", as
   assert.equal(result.valid, true);
   assert.deepEqual((result.candidates as Array<{ id: string }>).map((candidate) => candidate.id), ["tiny-box", "tiny-step"]);
   assert.ok(await stat(join(root, "candidate-set.json")));
+});
+
+test("isolates repeated live proposals and resolves explicit selection through the final index", async () => {
+  const root = await mkdtemp(join(tmpdir(), "brick-builder-pi-proposals-"));
+  const api = new BrickBuilderAdapter({ runRoot: root, repositoryRoot: repo, python, isolateCandidateProposals: true });
+  const concepts = [
+    { id: "box-a", label: "A box", geometry: [{ ref: "box", center: [0, 1, 0], size: [2, 2, 2], color: "#2e8b57" }], render: { camera: "three-quarter", geometry_refs: ["box"] } },
+    { id: "box-b", label: "A wider box", geometry: [{ ref: "box", center: [0, 1, 0], size: [4, 2, 2], color: "#2e8b57" }], render: { camera: "three-quarter", geometry_refs: ["box"] } },
+  ];
+  const first = await api.conceptCandidateSet("first proposal", concepts);
+  const second = await api.conceptCandidateSet("repaired proposal", concepts);
+  assert.equal(first.valid, true);
+  assert.equal(second.valid, true);
+  await stat(join(root, "proposals", "proposal-01", "candidate-set.json"));
+  await stat(join(root, "proposals", "proposal-02", "candidate-set.json"));
+  await assert.rejects(() => stat(join(root, "candidate-set.json")));
+
+  await writeFile(join(root, "selection-ready.json"), JSON.stringify({
+    candidate_set_path: "proposals/proposal-02/candidate-set.json",
+  }));
+  const selected = await api.selectConceptCandidate("box-b");
+  assert.equal(selected.valid, true);
+  assert.equal(selected.selected_candidate_id, "box-b");
+  await stat(join(root, "selection", "selection.json"));
 });
 
 test("spatial concept submission preserves the request and writes deterministic previews", async () => {

@@ -2216,8 +2216,8 @@ root investigation.
 
 #### Delivery slice 1 follow-up: isolate proposal artifacts and propagate palette color
 
-Status: planned; address before treating live run directories as polished,
-reusable evidence or relying on model-requested colors.
+Status: verified (2026-09-03); the bounded live smoke, offline Python suite,
+and compiled Pi runtime suite all pass for this slice.
 
 The live smoke exposed two bounded implementation gaps:
 
@@ -2242,6 +2242,21 @@ Acceptance gates:
   successful candidates;
 - focused regression tests cover proposal artifact isolation, green-color
   propagation, and the existing no-ranking/no-automatic-selection boundary.
+
+Implementation notes (2026-09-03): live attempts now write under distinct
+`attempts/attempt-NN/` roots, and repeated candidate proposals within an attempt
+write under distinct `proposals/proposal-NN/` roots. The root
+`selection-ready.json` points only to the successful candidates from the final
+proposal. Earlier attempts and failed proposals remain auditable without being
+mixed into the presented candidate set. Source hex colours are resolved against
+the active palette's named colours; the mapping records source and LDraw colour
+code, and unsupported or mixed colours are rejected. The focused Python suite
+passes with 143 passed and one expected skip; the elevated compiled Pi runtime
+suite passes all 33 tests. A fresh adult-supervised live smoke for “Make a tiny
+green lookout tower” succeeded on attempt 1 with three candidates, each mapped
+from `#2e8b57` to LDraw code `2` and each producing `final.ldr`. A bridge-shaped
+smoke also remained correctly bounded and auditable when its proposals were
+rejected for geometry diagnostics.
 
 Explicit non-goals: ranking or automatic selection, expanded geometry families,
 arbitrary colors outside the supported palette, inventory claims, purchasing,

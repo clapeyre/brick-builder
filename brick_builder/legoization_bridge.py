@@ -15,11 +15,12 @@ from typing import Any, Mapping
 
 from .legoization import LEGOizationResult, WallBoxScaffold, legoize_wall_box
 from .palette import load_palette
+from .colour_mapping import resolve_source_colour
 from .spatial_concept import GenericBoxConcept
 
 
 FORMAT = "brick-builder.legoization-bridge/v1"
-DEFAULT_COLOUR = 4
+DEFAULT_COLOUR = None
 MAX_WIDTH_STUDS = 16
 MAX_DEPTH_STUDS = 2
 MAX_HEIGHT_PLATES = 12
@@ -97,7 +98,7 @@ def legoize_accepted_box(
     concept: GenericBoxConcept,
     palette: Mapping[str, Any] | str | PathLike[str],
     *,
-    colour: int = DEFAULT_COLOUR,
+    colour: int | None = DEFAULT_COLOUR,
 ) -> LEGOizationBridgeResult:
     """Convert exactly one accepted, centered, grounded generic box.
 
@@ -138,6 +139,10 @@ def legoize_accepted_box(
         return LEGOizationBridgeResult("rejected", source, None, tuple(diagnostics))
 
     palette_data = load_palette(palette) if isinstance(palette, (str, PathLike)) else dict(palette)
+    if colour is None:
+        colour, colour_error = resolve_source_colour(box.color, palette_data)
+        if colour_error:
+            return LEGOizationBridgeResult("rejected", source, None, (colour_error,))
     palette_colours = {item.get("ldraw_code") for item in palette_data.get("colours", [])}
     if colour not in palette_colours:
         return LEGOizationBridgeResult(
@@ -149,6 +154,7 @@ def legoize_accepted_box(
         "dimensions": {"width_studs": width_i, "height_plates": height_i, "depth_studs": depth_i},
         "origin": "wall-box centered at x=0,z=0 with bottom at y=0",
         "source_color": box.color,
+        "mapped_colour": colour,
         "ldraw_colour": colour,
     }
     lego = legoize_wall_box(

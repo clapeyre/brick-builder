@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -59,6 +59,25 @@ test("turns repeated deterministic failures into exhaustion and preserves provid
   const provider = await runLiveConceptToCandidate({ runRoot: providerRoot, request: "make a tower", runner: async () => ({ status: "provider-failure", message: "provider unavailable" }) });
   assert.equal(provider.status, "provider-failure");
   assert.equal(provider.message, "provider unavailable");
+});
+
+test("isolates each bounded attempt under its own auditable artifact root", async () => {
+  const runRoot = await root();
+  const attemptRoots: string[] = [];
+  const result = await runLiveConceptToCandidate({
+    runRoot, request: "make a bridge", maxAttempts: 2,
+    runner: async ({ attemptRoot }) => {
+      attemptRoots.push(attemptRoot);
+      await writeFile(join(attemptRoot, "proposal-marker.json"), JSON.stringify({ attemptRoot }));
+      return { status: "failure", feedback: [{ code: "INVALID_CONCEPT" }] };
+    },
+  });
+  assert.equal(result.status, "exhaustion");
+  assert.equal(new Set(attemptRoots).size, 2);
+  assert.deepEqual(await readdir(join(runRoot, "attempts")), ["attempt-01", "attempt-02"]);
+  await stat(join(runRoot, "attempts", "attempt-01", "proposal-marker.json"));
+  await stat(join(runRoot, "attempts", "attempt-02", "proposal-marker.json"));
+  assert.equal((await readdir(runRoot)).includes("candidates"), false);
 });
 
 test("loads an external provider config without accepting a credential value", async () => {

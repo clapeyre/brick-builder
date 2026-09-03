@@ -62,13 +62,27 @@ geometry items have `ref`, three-number `center`, three-number `size`, and a
 order. The tool schema and live prompt include this contract so deterministic
 repair feedback is actionable.
 
-The run contains `request.json`, `trajectory.json`, `live-run.json`,
-`candidate-set.json`, `selection-ready.json`, candidate render evidence, and
-per-candidate `.ldr` files on success. `selection-ready.json` is an index only;
-candidate choice remains a separate explicit operation. Engineering validation
-is recorded separately from resemblance, and the output still requires adult
-inspection in BrickLink Studio.
+The run contains `request.json`, `trajectory.json`, and `live-run.json` at its
+root. Each bounded attempt is isolated below
+`attempts/attempt-NN/proposals/proposal-NN/`, where the proposal directory keeps
+its own request, candidate set, diagnostics, render evidence, and per-candidate
+`.ldr` files. On success, root `selection-ready.json` points only to the latest
+successful proposal. It is an index only; candidate choice remains a separate
+explicit operation. Engineering validation is recorded separately from
+resemblance, and the output still requires adult inspection in BrickLink Studio.
+
+The live prompt uses a small supported source-color set. Deterministic
+LEGOization maps each source hex color to the active palette's LDraw code and
+records both values in the bridge evidence. Unsupported or mixed source colors
+are rejected explicitly rather than silently becoming Red.
 
 The live provider smoke is manual and adult-supervised. The automated contract
 remains the offline scripted Pi test suite; no credentials or network access are
 needed to run those tests.
+
+The verified 2026-09-03 green lookout smoke completed on its first bounded
+session with three successful candidates. Each candidate recorded source
+`#2e8b57`, mapped it to LDraw color code `2`, and emitted a `final.ldr` using
+that code. A bridge-shaped request that exhausted its geometry repair budget
+still retained isolated proposal directories and diagnostics without producing
+false LDraw artifacts.
