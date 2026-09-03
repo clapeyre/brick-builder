@@ -8,16 +8,17 @@ directory. It does not select a candidate or expose shell/filesystem tools.
 ## Configure outside the repository
 
 Create a provider configuration somewhere outside this repository. The file
-contains no credential; `apiKeyEnv` names an environment variable that the
-adult sets for the command's process.
+contains no credential. By default, the runner reads Pi credentials from the
+current user's `$HOME/.pi/agent/auth.json` (on Windows,
+`C:\Users\<user>\.pi\agent\auth.json`). An optional `apiKeyEnv` can be used
+instead when environment-based authentication is preferred.
 
 ```json
 {
   "provider": "openai",
   "model": "YOUR_MODEL_ID",
   "api": "openai-responses",
-  "baseUrl": "https://api.openai.com/v1",
-  "apiKeyEnv": "BRICK_BUILDER_API_KEY"
+  "baseUrl": "https://api.openai.com/v1"
 }
 ```
 
@@ -27,13 +28,18 @@ repository, the configuration committed here, or a run artifact.
 
 ## Run
 
-From `pi-adapter`, set the adult-controlled environment variable and use a new
-caller-owned run directory for each attempt:
+From `pi-adapter`, use a new caller-owned run directory for each attempt. With
+credentials in the default Pi `auth.json`, no environment-variable command is
+needed:
 
 ```powershell
-$env:BRICK_BUILDER_API_KEY = "<adult-supplied-key>"
 pnpm live --config "C:\path\outside\brick-builder\provider.json" --run-root "C:\path\to\runs\live-001" "Make a tiny red lookout tower"
 ```
+
+The runner deliberately keeps `settings.json` run-local while reading the
+global `auth.json`: this preserves the Brick Builder-only tool boundary even if
+global Pi settings enable other tools or extensions. To use a non-default auth
+file, add `"authPath": "C:\\path\\outside\\auth.json"` to the provider config.
 
 If Python is not on PATH, pass the approved project Python explicitly with
 `--python`. The command returns status `success` when two or three concepts

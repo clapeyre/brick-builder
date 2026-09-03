@@ -56,9 +56,16 @@ test("turns repeated deterministic failures into exhaustion and preserves provid
 test("loads an external provider config without accepting a credential value", async () => {
   const runRoot = await root();
   const configPath = join(runRoot, "provider.json");
-  await writeFile(configPath, JSON.stringify({ provider: "adult-provider", model: "model", api: "openai-responses", baseUrl: "https://example.test/v1", apiKeyEnv: "BRICK_BUILDER_API_KEY", apiKey: "must-not-be-used" }));
+  await writeFile(configPath, JSON.stringify({ provider: "adult-provider", model: "model", api: "openai-responses", baseUrl: "https://example.test/v1", apiKey: "must-not-be-used" }));
   const config = await readLiveRunConfig(configPath);
-  assert.deepEqual(config, { provider: "adult-provider", model: "model", api: "openai-responses", baseUrl: "https://example.test/v1", apiKeyEnv: "BRICK_BUILDER_API_KEY" });
+  assert.deepEqual(config, { provider: "adult-provider", model: "model", api: "openai-responses", baseUrl: "https://example.test/v1" });
+});
+
+test("retains optional external auth path and environment compatibility", async () => {
+  const runRoot = await root();
+  const configPath = join(runRoot, "provider.json");
+  await writeFile(configPath, JSON.stringify({ provider: "provider", model: "model", api: "openai-responses", baseUrl: "https://example.test/v1", authPath: "C:\\Secrets\\auth.json", apiKeyEnv: "BRICK_BUILDER_API_KEY" }));
+  assert.deepEqual(await readLiveRunConfig(configPath), { provider: "provider", model: "model", api: "openai-responses", baseUrl: "https://example.test/v1", authPath: "C:\\Secrets\\auth.json", apiKeyEnv: "BRICK_BUILDER_API_KEY" });
 });
 
 test("rejects an unsafe credential environment name and unsupported API", async () => {

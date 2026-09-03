@@ -1,5 +1,6 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import { isAbsolute, relative, resolve } from "node:path";
+import { homedir } from "node:os";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import {
   BrickBuilderAdapter,
   createBrickBuilderTools,
@@ -20,7 +21,8 @@ export type LiveRunConfig = {
   model: string;
   api: "openai-completions" | "openai-responses" | "anthropic-messages" | "google-generative-ai";
   baseUrl: string;
-  apiKeyEnv: string;
+  apiKeyEnv?: string;
+  authPath?: string;
   name?: string;
 };
 
@@ -177,19 +179,20 @@ export async function readLiveRunConfig(path: string): Promise<LiveRunConfig> {
   const value: unknown = JSON.parse(await readFile(resolve(path), "utf8"));
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("live config must be an object");
   const config = value as Record<string, unknown>;
-  for (const key of ["provider", "model", "api", "baseUrl", "apiKeyEnv"]) {
+  for (const key of ["provider", "model", "api", "baseUrl"]) {
     if (typeof config[key] !== "string" || !config[key].trim()) throw new Error(`live config ${key} must be a non-empty string`);
   }
   if (!SUPPORTED_APIS.has(config.api as LiveRunConfig["api"])) throw new Error(`unsupported live provider API: ${String(config.api)}`);
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(config.apiKeyEnv as string)) throw new Error("live config apiKeyEnv must be an environment variable name");
+  if (config.apiKeyEnv !== undefined && (typeof config.apiKeyEnv !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(config.apiKeyEnv))) throw new Error("live config apiKeyEnv must be an environment variable name");
   if (!/^https?:\/\//i.test(config.baseUrl as string)) throw new Error("live config baseUrl must be an http(s) URL");
   const result: LiveRunConfig = {
     provider: config.provider as string,
     model: config.model as string,
     api: config.api as LiveRunConfig["api"],
     baseUrl: config.baseUrl as string,
-    apiKeyEnv: config.apiKeyEnv as string,
   };
+  if (typeof config.apiKeyEnv === "string") result.apiKeyEnv = config.apiKeyEnv;
+  if (typeof config.authPath === "string" && config.authPath.trim()) result.authPath = config.authPath;
   if (typeof config.name === "string") result.name = config.name;
   return result;
 }
@@ -231,20 +234,22 @@ function selectionReadyIndex(candidateSet: Record<string, unknown>): Record<stri
 }
 
 async function runConfiguredPiSession(context: LiveRunContext, config: LiveRunConfig, environment: NodeJS.ProcessEnv): Promise<LiveRunResult> {
-  if (!environment[config.apiKeyEnv]) return { status: "provider-failure", message: `configured credential environment variable ${config.apiKeyEnv} is not set` };
+  if (config.apiKeyEnv && !environment[config.apiKeyEnv]) return { status: "provider-failure", message: `configured credential environment variable ${config.apiKeyEnv} is not set` };
+  const authPath = config.authPath ? resolve(config.authPath) : join(homedir(), ".pi", "agent", "auth.json");
   const runtime = await ModelRuntime.create({
-    authPath: writeArtifactPath(context.runRoot, "pi-auth.json"),
+    authPath,
     modelsPath: null,
     allowModelNetwork: false,
     refreshOnCreate: false,
   });
-  runtime.registerProvider(config.provider, {
+  const providerConfig: Record<string, unknown> = {
     name: config.name ?? config.provider,
     baseUrl: config.baseUrl,
     api: config.api,
-    apiKey: `$${config.apiKeyEnv}`,
     models: [{ id: config.model, name: config.model, api: config.api, reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 4096 }],
-  });
+  };
+  if (config.apiKeyEnv) providerConfig.apiKey = `$${config.apiKeyEnv}`;
+  runtime.registerProvider(config.provider, providerConfig as any);
   const model = runtime.getModel(config.provider, config.model);
   if (!model) return { status: "provider-failure", message: "configured provider did not expose the requested model" };
   const sessionOptions: CreateAgentSessionOptions = {
