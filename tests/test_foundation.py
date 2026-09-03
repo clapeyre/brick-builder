@@ -3,7 +3,6 @@ import os
 import tempfile
 import pytest
 from pathlib import Path
-from unittest.mock import patch
 
 from brick_builder.compiler import compile_model
 from brick_builder.ldraw import LDrawDiscoveryError, discover_ldraw_library

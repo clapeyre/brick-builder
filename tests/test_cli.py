@@ -5,7 +5,6 @@ import subprocess
 import sys
 import tempfile
 import pytest
-from unittest.mock import patch
 from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
@@ -64,13 +63,15 @@ class TestCliContract:
             assert not (self.parse_json(run("compile", path, output), 2)["valid"])
             assert not (output.exists())
 
-    def test_internal_handler_error_is_exit_three(self):
+    def test_internal_handler_error_is_exit_three(self, monkeypatch, capsys):
         from brick_builder import cli
-        with patch.object(cli, "_catalog", side_effect=RuntimeError("boom")):
-            with patch("sys.stdout") as stdout:
-                status = cli.main(["catalog"])
+        def fail_catalog(args):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(cli, "_catalog", fail_catalog)
+        status = cli.main(["catalog"])
         assert status == 3
-        payload = json.loads("".join(call.args[0] for call in stdout.write.call_args_list))
+        payload = json.loads(capsys.readouterr().out)
         assert payload["issues"][0]["code"] == "INTERNAL_ERROR"
 
     def test_compile_hash_and_legacy_shim(self):

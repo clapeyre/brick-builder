@@ -1,7 +1,6 @@
 import json
 import tempfile
 import pytest
-from unittest.mock import patch
 from pathlib import Path
 
 import brick_builder.fixture_demo_selector as selector
@@ -110,7 +109,7 @@ class TestFixtureDemoController:
             assert state == {"yaw": -47.0, "pitch": 29.0}
             assert controller.preview_state("stepped-box") == {"yaw": -35.0, "pitch": 25.0}
 
-    def test_failed_candidate_set_is_not_exposed_as_generated(self):
+    def test_failed_candidate_set_is_not_exposed_as_generated(self, monkeypatch):
         with tempfile.TemporaryDirectory() as directory:
             failed_run = Path(directory) / "tower-choices-001"
             failed = {
@@ -133,9 +132,9 @@ class TestFixtureDemoController:
                 ],
             }
             controller = FixtureDemoController(directory)
-            with patch.object(selector, "replay_candidate_set", return_value=failed):
-                with pytest.raises(ValueError, match="SCHEMA_DEPENDENCY.*docs/demo-setup.md"):
-                    controller.create_tower_choices()
+            monkeypatch.setattr(selector, "replay_candidate_set", lambda *args: failed)
+            with pytest.raises(ValueError, match="SCHEMA_DEPENDENCY.*docs/demo-setup.md"):
+                controller.create_tower_choices()
             assert not (controller.generated)
             assert controller.candidate_set_run is None
             with pytest.raises(ValueError, match="create tower choices"):

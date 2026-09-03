@@ -2038,9 +2038,8 @@ Observed result: all 22 Python test modules are pytest-native. The strict core
 run with pytest's unittest compatibility plugin disabled passes with 138 tests
 passed and 1 expected Tk smoke-test skip; the focused desktop selector run
 passes 9 tests in the real Tk environment. The repository contains no
-`unittest.TestCase`, `unittest.main`, `self.assert*`, unittest setup-hook, or
-test-framework imports. The remaining `unittest.mock` imports are standard
-library mocking utilities, not a second test runner. Compilation and diff
+unittest test-framework imports or compatibility constructs. Mocking uses
+pytest's built-in `monkeypatch` and `capsys` fixtures. Compilation and diff
 checks also pass. No scenarios, fixtures, production code, or integration
 boundaries changed.
 
