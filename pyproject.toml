@@ -9,6 +9,9 @@ description = "Deterministic, child-friendly LEGO model design tools"
 requires-python = ">=3.11"
 dependencies = ["jsonschema>=4.20,<5"]
 
+[project.optional-dependencies]
+test = ["pytest>=8,<9"]
+
 [project.scripts]
 brick-builder = "brick_builder.cli:main"
 
@@ -17,3 +20,7 @@ include = ["brick_builder*"]
 
 [tool.setuptools.package-data]
 brick_builder = ["schema/*.json", "palettes/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

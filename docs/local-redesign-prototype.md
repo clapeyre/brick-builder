@@ -32,7 +32,7 @@ the same references and canned edit can be checked on replay.
 The deterministic state machine can be exercised without opening a window:
 
 ```powershell
-python -m unittest tests.test_local_redesign -v
+python -m pytest tests/test_local_redesign.py -q
 ```
 
 This experiment intentionally has no live model call, LEGOization, Pi or

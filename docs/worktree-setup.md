@@ -11,7 +11,7 @@ Run these commands from the worktree root in Windows PowerShell.
 ```powershell
 # Python deterministic core
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e .
+.\.venv\Scripts\python.exe -m pip install -e ".[test]"
 
 # Pi adapter
 pnpm --dir pi-adapter install --frozen-lockfile

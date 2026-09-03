@@ -10,15 +10,16 @@ Create an isolated environment (PowerShell):
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e .
+python -m pip install -e ".[test]"
 ```
 
-The deterministic slice uses Python and `unittest`; structural validation depends on the declared `jsonschema` package.
+The deterministic slice uses Python and `pytest`; structural validation
+depends on the declared `jsonschema` package.
 
 Run all tests from the repository root:
 
 ```powershell
-python -m unittest discover -s tests -v
+python -m pytest -q
 ```
 
 Compile a hand-authored reference model to LDraw:

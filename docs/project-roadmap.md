@@ -2055,6 +2055,41 @@ Observed results (2026-09-02):
 
 This verifies one bounded repair operation, not broad visual-repair quality.
 
+### Test workflow slice: pytest runner
+
+Status: verified (2026-09-03).
+
+Make pytest the supported Python test runner without changing the existing
+test coverage or product behavior. Add a project test extra and pytest
+discovery configuration, update the development/worktree instructions, and
+verify that the complete suite runs through `python -m pytest`.
+
+Acceptance gates:
+
+- a fresh test-capable editable install provides pytest through a declared
+  optional dependency;
+- pytest discovers and passes the complete existing Python suite, including
+  the conditional Tk smoke behavior;
+- documented commands no longer require `unittest discover`;
+- no test coverage, product dependency, runtime behavior, or roadmap scope is
+  changed by the runner migration.
+
+Explicit non-goals: rewriting every existing assertion into pytest style,
+new fixtures, plugin adoption, product changes, UI changes, and new test
+scenarios.
+
+Observed results (2026-09-03):
+
+- `pytest>=8,<9` is declared in the optional `[test]` extra and pytest is
+  configured to discover the existing `tests/test_*.py` suite;
+- `python -m pytest -q` passes with 138 tests and one expected bundled-runtime
+  Tk skip; the desktop `.demo-venv` selector path passes all 9 focused tests;
+- development, fresh-worktree, and local-redesign instructions now use pytest
+  commands, while the existing test coverage and test behavior remain intact;
+- no production dependency, product runtime, UI behavior, or integration
+  boundary changed. The test classes remain unittest-compatible as an
+  intentionally bounded migration step.
+
 ### Next recommended task
 
 Run the separate supervised child-preference evaluation with the six-year-old
